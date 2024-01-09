@@ -1,0 +1,36 @@
+## Use me to zero a proposal :)
+
+zero_a_past_proposal <- function(name, regions,
+                                pars_set = "2020", deterministic) {
+  
+  if (deterministic) {
+    proposal_filename <- 
+      paste0("src/rtm_compare_parameters_fits/pars/central/bb/", pars_set, "/deterministic/proposal.csv")
+  } else {
+    proposal_filename <- 
+      paste0("src/rtm_compare_parameters_fits/pars/central/bb/", pars_set, "/stochastic/proposal.csv")
+  }
+  
+  proposal <- read_csv(proposal_filename)
+  
+  proposal[proposal$region %in% regions, name] <- 0
+  proposal[proposal$region %in% regions & proposal$name == name,
+           !names(proposal) %in% c("region", "name")] <- 0
+  proposal <- dplyr::arrange(proposal, region, name)
+  col_order <- c(1, 2, 2 + order(names(proposal)[-c(1,2)]))
+  proposal <- proposal[, col_order]
+  
+  write.csv(proposal, proposal_filename, row.names = FALSE)
+}
+
+betas_to_zero <- paste0("beta", 9:27)
+
+zero_proposal <- c("mu_gamma_H", "mu_gamma_H_2", "mu_gamma_H_3", "mu_gamma_H_4",
+"ta_delta", "seed_date_delta", "rel_p_H_delta", "rel_p_ICU_delta", "rel_p_D_delta",
+"mu_D_2", "p_H_2", "p_H_3", betas_to_zero)
+
+proposal_region <- c("east_of_england", "london", "midlands",
+  "north_east_and_yorkshire", "north_west", "south_east", "south_west")
+
+lapply(zero_proposal, zero_a_past_proposal, proposal_region, deterministic = TRUE)
+lapply(zero_proposal, zero_a_past_proposal, proposal_region, deterministic = FALSE)
