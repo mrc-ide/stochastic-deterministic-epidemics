@@ -1,0 +1,6 @@
+outputs
+figs
+data.rds
+true_history.rds
+sir.R
+util.R
