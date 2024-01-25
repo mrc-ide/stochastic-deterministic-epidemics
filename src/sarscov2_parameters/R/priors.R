@@ -1,26 +1,21 @@
 create_priors <- function(pars_info) {
   ##### derive priors for hospital progression
   regional_ps <- read_csv("weighted_prior_ranges.csv")
-  regions <- c(sircovid::regions("england"))
+  regions <- c(sircovid::regions("england"), "england")
 
   regional_ps[regional_ps$param == "p_ICU", "mean"] <-
     0.5 * regional_ps[regional_ps$param == "p_ICU", "mean"]
 
-  additional_ps <- t(data.frame(c(param = "p_H", mean = 0.75),
-                                c(param = "p_H_2", mean = 0.75),
-                                c(param = "p_H_3", mean = 0.75)))
-  rownames(additional_ps) <- c()
-
   regional_ps <- regional_ps %>%
     dplyr::filter(region == "england") %>%
-    dplyr::select(param, mean) %>% rbind(additional_ps) %>%
+    dplyr::select(param, mean) %>%
     mutate(mean = as.numeric(mean))
 
   # Named vector of prior ranges for hospitalisation parameters
   ps_to_lower <- data.frame(
     param = c("p_ICU", "p_H_D", "p_ICU_D",
-              "p_W_D", "p_G_D", "p_H", "p_H_2", "p_H_3"),
-    to_lower = c(0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.3, 0.3)
+              "p_W_D", "p_G_D", "p_H", "p_H_2"),
+    to_lower = c(0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.3)
   )
 
   regional_ps <- regional_ps %>%
@@ -42,10 +37,10 @@ create_priors <- function(pars_info) {
 
   ### set beta_priors
   beta_hps <- data.frame(
-    scale = rep(NA, 4),
-    shape = rep(NA, 4)
+    scale = rep(NA, 3),
+    shape = rep(NA, 3)
   )
-  row.names(beta_hps) <- c("beta1", "beta2", "beta3", "beta19")
+  row.names(beta_hps) <- c("beta1", "beta2", "beta3")
 
   ## beta value that would give R0 = 1
   R0_fac <- 0.0367
@@ -68,17 +63,11 @@ create_priors <- function(pars_info) {
                                    upper_D = 3,
                                    ci = 0.95)
   beta_hps["beta3", "scale"] <- beta_hps["beta3", "scale"] * R0_fac
-  ## beta19 aim for 95% CI of [0.4, 5.4]
-  beta_hps["beta19", ] <- fit_gamma(mean_D = 2.168,
-                                    lower_D = 0.4,
-                                    upper_D = 5.4,
-                                    ci = 0.95)
-  beta_hps["beta19", "scale"] <- beta_hps["beta19", "scale"] * R0_fac
-
+  
   ## Between beta3 and beta18 we use the same prior distribution
   ## After beta19 we use the same prior distribution
   beta_hps <-
-    beta_hps[c("beta1", "beta2", rep("beta3", 16), rep("beta19", 9)), ]
+    beta_hps[c("beta1", "beta2", rep("beta3", 34)), ]
   rownames(beta_hps) <- paste0("beta", seq_len(nrow(beta_hps)))
   beta_names <- rownames(beta_hps)
 
@@ -93,85 +82,40 @@ create_priors <- function(pars_info) {
   hps[beta_names, colnames(beta_hps)] <- beta_hps
   hps[unique(regional_ps$par), c("shape1", "shape2")] <- as.matrix(p_hps)
   
-  ## uniform beta priors
-  pillar2_age_bands <- c("under15", "15_24", "25_49", "50_64", "65_79", "80_plus")
-  par <- c("eps", "rho_pillar2_tests", "alpha_H", "alpha_D", "mu_D", "mu_D_2",
-           "p_ICU_2", "p_G_D", "p_G_D_CHR", "p_NC",
-           "p_NC_weekend", "alpha_pillar2_cases", "phi_pillar2_cases",
-           "phi_pillar2_cases_weekend", "alpha_death_hosp",
-           paste0("phi_pillar2_cases_", pillar2_age_bands),
-           paste0("phi_pillar2_cases_weekend_", pillar2_age_bands))
-
-  extra_beta <- data.frame(
-    par = par,
-    region = "england",
-    scale = NA_real_,
-    shape = NA_real_,
-    shape1 = 1,
-    shape2 = 1,
-    correlation = NA_real_,
-    stringsAsFactors = FALSE)
-  rownames(extra_beta) <- extra_beta$par
-
-  ## pseudouniform gamma priors
-  extra_gamma_flat <- data.frame(
-    par = c("mu_gamma_H", "mu_gamma_H_2", "mu_gamma_H_3", "mu_gamma_H_4"),
-    region = "england",
-    scale = 1000,
-    shape = 1.001,
-    shape1 = NA_real_,
-    shape2 = NA_real_,
-    correlation = NA_real_,
-    stringsAsFactors = FALSE)
-  rownames(extra_gamma_flat) <- extra_gamma_flat$par
-
-  hps <- rbind(hps, extra_beta, extra_gamma_flat)
-
-  ## For "start_date" we have a uniform prior on sircovid_dates
-  ## 1,...,75. This is fine for restarting purposes as this parameter
-  ## will inevitably not be fitted after a restart.
-
+  pillar2_age_bands <- c("15_24", "25_49", "50_64", "65_79", "80_plus")
+  
   ### add regional ps
   suppressMessages(
     hps <- hps %>%
       dplyr::full_join(regional_ps))
 
-  ## gamma priors on m_CHW, m_CHR
-  regions <- unique(hps$region)
-  chr_pop <- sapply(regions,
-                    function(x){sircovid::lancelot_parameters(1, x)$N_tot[19]})
-  ch_mean <- 1e-1
-  ch_shape <- 5
-  m_CHW_hps <- data.frame(
-    par = "m_CHW",
-    region = regions,
-    scale = ch_mean / (ch_shape * chr_pop), #scale by CHR population
-    shape = ch_shape,
-    shape1 = NA_real_,
-    shape2 = NA_real_,
-    correlation = NA_real_,
-    mean = NA_real_,
-    stringsAsFactors = FALSE,
-    row.names = NULL
-  )
-  m_CHR_hps <- m_CHW_hps
-  m_CHR_hps$par <- "m_CHR"
-  hps <- rbind(hps, m_CHW_hps, m_CHR_hps)
-
   ret <- priors_wide_to_long(hps)
-
-  extra_multistrain <-
-    expand.grid(region = unique(pars_info$region),
+  
+  par <- c("rho_pillar2_tests", "alpha_H", "alpha_admission", "alpha_D",
+           "alpha_death_hosp", "mu_D", "mu_D_2", "mu_D_3", "mu_D_4", "mu_D_5",
+           "p_ICU_2", "p_H", "p_H_2", "p_G_D", "p_G_D_2", "mu_gamma_H", "mu_gamma_H_2",
+           "mu_gamma_H_3", "mu_gamma_H_4", "seed_date_alpha", "ta_alpha",
+           "seed_date_delta", "ta_delta", "seed_date_omicron", "ta_omicron",
+           "rel_p_H_alpha", "rel_p_H_delta", "rel_p_ICU_alpha",
+           "rel_p_ICU_delta", "rel_p_D_alpha", "rel_p_D_delta",
+           "rel_p_H_omicron", "rel_p_ICU_omicron", "rel_p_D_omicron",
+           paste0("p_NC_", pillar2_age_bands),
+           paste0("p_NC_weekend_", pillar2_age_bands))
+  
+  if (assumptions == "mu_d_summer") {
+    par <- c(par, "mu_D_6")
+  }
+  
+  extra_uniform <-
+    expand.grid(region = regions,
                 type = "null",
-                name = c("seed_date_delta", "ta_delta",
-                         "rel_p_H_delta", "rel_p_ICU_delta",
-                         "rel_p_D_delta"),
+                name = par,
                 gamma_scale = NA_real_,
                 gamma_shape = NA_real_,
                 beta_shape1 = NA_real_,
                 beta_shape2 = NA_real_,
                 stringsAsFactors = FALSE)
-  ret <- rbind(ret, extra_multistrain)
+  ret <- rbind(ret, extra_uniform)
 
   nms_expected <- unique(pars_info$name)
   nms_found <- unique(ret$name)

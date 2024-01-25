@@ -1,0 +1,632 @@
+---
+title: "Paper Figures"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(width = 80)
+
+
+### This R chunk will get model trajectories and pre-process other object with
+### interesting model outputs
+library(tidyr)
+library(dplyr)
+model_dates <- dat$samples[[1]]$trajectories$date[-1L]
+emergence_period <- "Emergence3"
+
+### Immunity levels vs infection ----
+cut_off <- 0.95
+vam_dates <- vam_data %>% filter(region == "england")
+end_date <- sircovid::sircovid_date_as_date(max(model_dates))
+start_date <- sircovid::sircovid_date_as_date(min(model_dates))
+
+key_dates <- c(start_date,  as.Date("2020-12-08"),
+            min(vam_dates$date[vam_dates$Alpha >= 0], na.rm = TRUE),
+            min(vam_dates$date[vam_dates$Alpha >= 0.3], na.rm = TRUE),
+            min(vam_dates$date[vam_dates$Alpha >= cut_off], na.rm = TRUE),
+            min(vam_dates$date[vam_dates$Delta >= 0], na.rm = TRUE),
+            min(vam_dates$date[vam_dates$Delta >= 0.3], na.rm = TRUE),
+            min(vam_dates$date[vam_dates$Delta >= cut_off], na.rm = TRUE),
+            min(vam_dates$date[vam_dates$Omicron >= 0], na.rm = TRUE),
+            min(vam_dates$date[vam_dates$Omicron >= 0.3], na.rm = TRUE),
+            min(vam_dates$date[vam_dates$Omicron >= cut_off], na.rm = TRUE),
+            end_date)
+key_events <- c("Start date", "Vacc rollout",
+                "Alpha seed",
+                "Alpha ≥50%",
+                paste0("Alpha ≥", cut_off * 100, "%"),
+                "Delta seed",
+                "Delta ≥50%",
+                paste0("Delta ≥", cut_off * 100, "%"),
+                "Omicron seed",
+                "Omicron ≥50%",
+                paste0("Omicron ≥", cut_off * 100, "%"),
+                "End date")
+
+stopifnot(length(key_dates) == length(key_events))
+
+# Proportion of population not in S compartments
+S_vaccinated <- get_model_trajectory(dat, "england", "prop_protected_S_vaccinated", TRUE) %>%
+  filter(date %in% key_dates) %>%
+  mutate_if(is.numeric, round, 3)
+
+# R that have been vaccinated
+R_vaccinated <- get_model_trajectory(dat, "england", "prop_protected_R_vaccinated", TRUE) %>%
+  filter(date %in% key_dates) %>%
+  mutate_if(is.numeric, round, 3)
+
+# R that are unvaccinated
+R_unvaccinated <- get_model_trajectory(dat, "england", "prop_protected_R_unvaccinated", TRUE) %>%
+  filter(date %in% key_dates) %>%
+  mutate_if(is.numeric, round, 3)
+
+# Output proportion of the population with immunity against infection
+prop_immunity <- data.frame(
+  date = key_dates,
+  events = key_events) %>%
+  arrange(date)
+
+prop_immunity$Nat_imm_only <- paste0(
+  R_unvaccinated$mean * 100, "% (",
+  R_unvaccinated$lb * 100, " - ",
+  R_unvaccinated$ub * 100, ")")
+
+prop_immunity$Mixed_imm <- paste0(
+  R_vaccinated$mean * 100, "% (",
+  R_vaccinated$lb * 100, " - ",
+  R_vaccinated$ub * 100, ")")
+
+prop_immunity$Vacc_imm_only <- paste0(
+  S_vaccinated$mean * 100, "% (",
+  S_vaccinated$lb * 100, " - ",
+  S_vaccinated$ub * 100, ")")
+
+prop_immunity$Total_imm <- paste0(
+  (R_unvaccinated$mean + R_vaccinated$mean + S_vaccinated$mean) * 100, "% (",
+  (R_unvaccinated$lb + R_vaccinated$lb + S_vaccinated$lb) * 100, " - ",
+  (R_unvaccinated$ub + R_vaccinated$ub + S_vaccinated$ub) * 100, ")"
+  )
+
+#----
+
+
+### Max/min effective severity by variant during the time each dominated ----
+
+what <- c("ihr", "hfr", "ifr")
+
+# Dates at which we have severity change points
+strain_epochs <- as.Date(c("2020-09-17", "2021-03-08", "2021-11-01"))
+sev_dates <- as.Date(
+  c("2020-04-01", "2020-06-01", "2020-06-16", "2020-10-01", "2020-11-15",
+  "2021-02-04", "2021-09-17", "2021-10-17", "2021-11-04", "2022-01-16"))
+
+sev <- lapply(what, function(w)
+    get_model_severity(dat$severity, vam_data, strain_epochs, w, by_strain = TRUE))
+names(sev) <- toupper(what)
+
+process_sev <- function(x) {
+  
+  x <- x %>%
+    filter(region == "england") %>%
+    pivot_longer(!c(date, region, dominant_voc)) %>%
+    mutate(strain = case_when(
+      grepl("strain_1", name) ~ "Strain 1",
+      grepl("strain_2", name) ~ "Strain 2",
+      TRUE ~ "Weighted")) %>%
+    mutate(name = case_when(
+      grepl("mean", name) ~ "mean",
+      grepl("lb", name) ~ "lb",
+      grepl("ub", name) ~ "ub")) %>%
+    pivot_wider(names_from = name, values_from = value) %>%
+    mutate(strain = case_when(
+      strain == "Strain 1" ~ case_when(
+        date < strain_epochs[1] ~ NA_character_,
+        date >= strain_epochs[1] & date < strain_epochs[2] ~ "Wildtype",
+        date >= strain_epochs[2] & date < strain_epochs[3] ~ "Alpha",
+        date >= strain_epochs[3] ~ "Delta"),
+      strain == "Strain 2" ~ case_when(
+        date < strain_epochs[1] ~ NA_character_,
+        date >= strain_epochs[1] & date < strain_epochs[2] ~ "Alpha",
+        date >= strain_epochs[2] & date < strain_epochs[3] ~ "Delta",
+        date >= strain_epochs[3] ~ "Omicron"),
+      TRUE ~ "Weighted"))
+}
+
+sev <- purrr::map(sev, process_sev)
+
+
+#----
+
+```
+
+
+## Main manuscript results
+
+### Evolving transmissibility and control strategies
+
+The R_0 of SARS-CoV-2 variants in England sequentially increased from 
+```{r, echo = FALSE}
+x <- switch_levels(get_national_intrinsic_values(dat, "Emergence3"))$r0
+x <- lapply(x, round, 1)
+
+print(paste0("Wildtype ", x$Wildtype[1], " (95%CrI ", x$Wildtype[2], " - ", x$Wildtype[3],")"))
+print(paste0("Alpha ", x$Alpha[1], " (95%CrI ", x$Alpha[2], " - ", x$Alpha[3],")"))
+print(paste0("Delta ", x$Delta[1], " (95%CrI ", x$Delta[2], " - ", x$Delta[3],")"))
+print(paste0("Omicron ", x$Omicron[1], " (95%CrI ", x$Omicron[2], " - ", x$Omicron[3],")"))
+
+```
+
+
+Estimate of population immune by early September 2020 (day Alpha seeded)
+```{r, echo = FALSE}
+print(prop_immunity[prop_immunity$events == "Alpha seed", c("date", "events",  "Total_imm")])
+```
+
+
+Population-level protection (total only) in December 8, 2020, March 2021 (Delta emerges), and late November 2021 (Omicron emerges)
+```{r, echo = FALSE}
+print(prop_immunity[prop_immunity$events == "Vacc rollout",
+                    c("date", "events",  "Total_imm")])
+print(prop_immunity[prop_immunity$events == "Delta seed",
+                    c("date", "events",  "Total_imm")])
+print(prop_immunity[prop_immunity$events == "Omicron seed",
+                    c("date", "events",  "Total_imm")])
+```
+
+The replacement of the Delta variant by Omicron was driven by the antigenic divergence and thus immune escape properties of Omicron relative to prior variants with population-level protection against infection decreasing
+```{r, echo = FALSE}
+print(prop_immunity[prop_immunity$events == "Omicron seed",
+                    c("date", "events",  "Total_imm")])
+print(prop_immunity[prop_immunity$events == paste0("Omicron ≥", cut_off * 100, "%"),
+                    c("date", "events",  "Total_imm")])
+```
+
+
+Immunity at the end of the model fit
+```{r, echo = FALSE}
+print(prop_immunity[prop_immunity$events == "End date", c(3:6)])
+```
+
+
+### Epidemiological drivers of the severity of COVID-19 waves
+
+The basic severity of the variants in England
+```{r, echo = FALSE}
+x <- switch_levels(get_national_intrinsic_values(dat, "Emergence3"))
+basic_ihr <- lapply(x$IHR, round, 3)
+basic_hfr <- lapply(x$HFR, round, 3)
+basic_ifr <- lapply(x$IFR, round, 3)
+```
+
+IHR
+```{r, echo = FALSE}
+print(paste0("Wildtype ", basic_ihr$Wildtype[1] * 100, "% (95%CrI ", basic_ihr$Wildtype[2]  * 100, " - ", basic_ihr$Wildtype[3]  * 100,")"))
+print(paste0("Alpha ", basic_ihr$Alpha[1] * 100, "% (95%CrI ", basic_ihr$Alpha[2]  * 100, " - ", basic_ihr$Alpha[3]  * 100,")"))
+print(paste0("Delta ", basic_ihr$Delta[1] * 100, "% (95%CrI ", basic_ihr$Delta[2]  * 100, " - ", basic_ihr$Delta[3]  * 100,")"))
+print(paste0("Omicron ", basic_ihr$Omicron[1] * 100, "% (95%CrI ", basic_ihr$Omicron[2]  * 100, " - ", basic_ihr$Omicron[3]  * 100,")"))
+```
+
+HFR
+```{r, echo = FALSE}
+print(paste0("Wildtype ", basic_hfr$Wildtype[1] * 100, "% (95%CrI ", basic_hfr$Wildtype[2]  * 100, " - ", basic_hfr$Wildtype[3]  * 100,")"))
+print(paste0("Alpha ", basic_hfr$Alpha[1] * 100, "% (95%CrI ", basic_hfr$Alpha[2]  * 100, " - ", basic_hfr$Alpha[3]  * 100,")"))
+print(paste0("Delta ", basic_hfr$Delta[1] * 100, "% (95%CrI ", basic_hfr$Delta[2]  * 100, " - ", basic_hfr$Delta[3]  * 100,")"))
+print(paste0("Omicron ", basic_hfr$Omicron[1] * 100, "% (95%CrI ", basic_hfr$Omicron[2]  * 100, " - ", basic_hfr$Omicron[3]  * 100,")"))
+```
+
+IFR
+```{r, echo = FALSE}
+print(paste0("Wildtype ", basic_ifr$Wildtype[1] * 100, "% (95%CrI ", basic_ifr$Wildtype[2]  * 100, " - ", basic_ifr$Wildtype[3]  * 100,")"))
+print(paste0("Alpha ", basic_ifr$Alpha[1] * 100, "% (95%CrI ", basic_ifr$Alpha[2]  * 100, " - ", basic_ifr$Alpha[3]  * 100,")"))
+print(paste0("Delta ", basic_ifr$Delta[1] * 100, "% (95%CrI ", basic_ifr$Delta[2]  * 100, " - ", basic_ifr$Delta[3]  * 100,")"))
+print(paste0("Omicron ", basic_ifr$Omicron[1] * 100, "% (95%CrI ", basic_ifr$Omicron[2]  * 100, " - ", basic_ifr$Omicron[3]  * 100,")"))
+```
+The percentage point decrease in the basic IFR between Alpha and Delta
+```{r, echo = FALSE}
+int_sev_eng <- dat$intrinsic_severity_raw$england
+i <- which(int_sev_eng$period == "Emergence3")
+j_Alpha <- which(int_sev_eng$variant == "Alpha")
+j_Delta <- which(int_sev_eng$variant == "Delta")
+ifr_diff <- int_sev_eng$IFR[i, j_Alpha, ] - int_sev_eng$IFR[i, j_Delta, ]
+
+print(paste0(round(mean(ifr_diff), 3) * 100, "% (95%CrI ", round(quantile(ifr_diff, 0.025), 3)  * 100, " - ", round(quantile(ifr_diff, 0.975), 3)  * 100,")"))
+```
+
+
+The basic severity of the virus decreased by changes in immunity and healthcare
+
+Delta's effective severity peaked at much lower values than it would have given its basic severity
+```{r, echo = FALSE}
+sev_HC_delta <- get_national_intrinsic_values(dat, "Mar 2021")$Delta
+sev_HC_delta <- lapply(sev_HC_delta, round, 3)
+
+
+eff_peak_Delta <- lapply(sev, function (s) {
+  s %>% filter(dominant_voc == "Delta", strain == "Delta") %>%
+  slice(which.max(mean)) %>%
+  select(mean, lb, ub) %>%
+  c(., recursive = TRUE) %>%
+    unname})
+
+
+ihr_HC <- unname(c(round((sev_HC_delta$IHR[1] / basic_ihr$Delta[1]), 1),
+                   round((sev_HC_delta$IHR[2] / basic_ihr$Delta[1]), 1),
+                   round((sev_HC_delta$IHR[3] / basic_ihr$Delta[1]), 1)))
+hfr_HC <- unname(c(round(1 - (sev_HC_delta$HFR[1] / basic_hfr$Delta[1]), 3) * 100,
+                   round(1 - (sev_HC_delta$HFR[3] / basic_hfr$Delta[1]), 3) * 100,
+                   round(1 - (sev_HC_delta$HFR[2] / basic_hfr$Delta[1]), 3) * 100))
+ifr_HC <- unname(c(round(1 - (sev_HC_delta$IFR[1] / basic_ifr$Delta[1]), 3) * 100,
+                   round(1 - (sev_HC_delta$IFR[3] / basic_ifr$Delta[1]), 3) * 100,
+                   round(1 - (sev_HC_delta$IFR[2] / basic_ifr$Delta[1]), 3) * 100))
+
+
+ihr_EF <- unname(c(round(1 - (eff_peak_Delta$IHR[1] / basic_ihr$Delta[1]), 3) * 100,
+                   round(1 - (eff_peak_Delta$IHR[3] / basic_ihr$Delta[1]), 3) * 100,
+                   round(1 - (eff_peak_Delta$IHR[2] / basic_ihr$Delta[1]), 3) * 100))
+hfr_EF <- unname(c(round(1 - (eff_peak_Delta$HFR[1] / basic_hfr$Delta[1]), 3) * 100,
+                   round(1 - (eff_peak_Delta$HFR[3] / basic_hfr$Delta[1]), 3) * 100,
+                   round(1 - (eff_peak_Delta$HFR[2] / basic_hfr$Delta[1]), 3) * 100))
+ifr_EF <- unname(c(round(1 - (eff_peak_Delta$IFR[1] / basic_ifr$Delta[1]), 3) * 100,
+                   round(1 - (eff_peak_Delta$IFR[3] / basic_ifr$Delta[1]), 3) * 100,
+                   round(1 - (eff_peak_Delta$IFR[2] / basic_ifr$Delta[1]), 3) * 100))
+
+print("Due to changes in healthcare ecosystem:")
+print(paste0("IHR ", ihr_HC[1], " (95%CrI ", ihr_HC[2], " - ", ihr_HC[3],") times higher"))
+print(paste0("HFR ", hfr_HC[1], "% (95%CrI ", hfr_HC[2], " - ", hfr_HC[3],") lower"))
+print(paste0("IFR ", ifr_HC[1], "% (95%CrI ", ifr_HC[2], " - ", ifr_HC[3],") lower"))
+
+print("Due to effective immunity:")
+print(paste0("IHR ", ihr_EF[1], "% (95%CrI ", ihr_EF[2], " - ", ihr_EF[3],") lower"))
+print(paste0("HFR ", hfr_EF[1], "% (95%CrI ", hfr_EF[2], " - ", hfr_EF[3],") lower"))
+print(paste0("IFR ", ifr_EF[1], "% (95%CrI ", ifr_EF[2], " - ", ifr_EF[3],") lower"))
+```
+
+Omicron's effective severity peaked at much lower values than it would have given its basic severity
+```{r, echo = FALSE}
+sev_HC_Omicron <- get_national_intrinsic_values(dat, "Omicron1")$Omicron
+sev_HC_Omicron <- lapply(sev_HC_Omicron, round, 3)
+
+
+eff_peak_Omicron <- lapply(sev, function (s) {
+  s %>% filter(dominant_voc == "Omicron", strain == "Omicron") %>%
+  slice(which.max(mean)) %>%
+  select(mean, lb, ub) %>%
+  c(., recursive = TRUE) %>%
+    unname})
+
+
+ihr_HC <- unname(c(round((sev_HC_Omicron$IHR[1] / basic_ihr$Omicron[1]), 1),
+                   round((sev_HC_Omicron$IHR[2] / basic_ihr$Omicron[1]), 1),
+                   round((sev_HC_Omicron$IHR[3] / basic_ihr$Omicron[1]), 1)))
+hfr_HC <- unname(c(round(1 - (sev_HC_Omicron$HFR[1] / basic_hfr$Omicron[1]), 3) * 100,
+                   round(1 - (sev_HC_Omicron$HFR[3] / basic_hfr$Omicron[1]), 3) * 100,
+                   round(1 - (sev_HC_Omicron$HFR[2] / basic_hfr$Omicron[1]), 3) * 100))
+ifr_HC <- unname(c(round(1 - (sev_HC_Omicron$IFR[1] / basic_ifr$Omicron[1]), 3) * 100,
+                   round(1 - (sev_HC_Omicron$IFR[3] / basic_ifr$Omicron[1]), 3) * 100,
+                   round(1 - (sev_HC_Omicron$IFR[2] / basic_ifr$Omicron[1]), 3) * 100))
+
+
+ihr_EF <- unname(c(round(1 - (eff_peak_Omicron$IHR[1] / basic_ihr$Omicron[1]), 3) * 100,
+                   round(1 - (eff_peak_Omicron$IHR[3] / basic_ihr$Omicron[1]), 3) * 100,
+                   round(1 - (eff_peak_Omicron$IHR[2] / basic_ihr$Omicron[1]), 3) * 100))
+hfr_EF <- unname(c(round(1 - (eff_peak_Omicron$HFR[1] / basic_hfr$Omicron[1]), 3) * 100,
+                   round(1 - (eff_peak_Omicron$HFR[3] / basic_hfr$Omicron[1]), 3) * 100,
+                   round(1 - (eff_peak_Omicron$HFR[2] / basic_hfr$Omicron[1]), 3) * 100))
+ifr_EF <- unname(c(round(1 - (eff_peak_Omicron$IFR[1] / basic_ifr$Omicron[1]), 3) * 100,
+                   round(1 - (eff_peak_Omicron$IFR[3] / basic_ifr$Omicron[1]), 3) * 100,
+                   round(1 - (eff_peak_Omicron$IFR[2] / basic_ifr$Omicron[1]), 3) * 100))
+
+print("Due to changes in healthcare ecosystem:")
+print(paste0("IHR ", ihr_HC[1], " (95%CrI ", ihr_HC[2], " - ", ihr_HC[3],") times higher"))
+print(paste0("HFR ", hfr_HC[1], "% (95%CrI ", hfr_HC[2], " - ", hfr_HC[3],") lower"))
+print(paste0("IFR ", ifr_HC[1], "% (95%CrI ", ifr_HC[2], " - ", ifr_HC[3],") lower"))
+
+print("Due to effective immunity:")
+print(paste0("IHR ", ihr_EF[1], "% (95%CrI ", ihr_EF[2], " - ", ihr_EF[3],") lower"))
+print(paste0("HFR ", hfr_EF[1], "% (95%CrI ", hfr_EF[2], " - ", hfr_EF[3],") lower"))
+print(paste0("IFR ", ifr_EF[1], "% (95%CrI ", ifr_EF[2], " - ", ifr_EF[3],") lower"))
+```
+
+
+## Regression model of HFR ~ occupancy 
+```{r, echo = FALSE}
+options(width = 300)
+print(jtools::summ(sev_winter$linear_model))
+```
+
+
+
+
+
+
+
+
+## Other numbers and tables
+### Intrinsic severity and R0 by variant
+```{r, echo = FALSE}
+states <- dat$samples
+steps <- dim(states[[1]]$trajectories$state)[3]
+cum_inf <- mean(states$england$trajectories$state["infections", , steps])
+cum_adm <- mean(states$england$trajectories$state["admitted", , steps]) +
+  mean(states$england$trajectories$state["diagnoses", , steps])
+
+
+int_sev <- dat$intrinsic_severity %>%
+  filter(period == emergence_period) %>%
+  filter(region == "england")
+  
+r0 <- get_r0_region(dat, "england") %>%
+  mutate(estimate = value) %>%
+  select(!value) %>%
+  pivot_longer(!c(estimate, region, source)) %>%
+  select(estimate, name, value, region, source)
+    
+tmp <- int_sev %>%
+  select(!period) %>%
+  rbind(., r0)
+
+natl_int_sev <- NULL
+for (v in unique(tmp$name)) {
+  
+  out <- NULL
+  for (i in unique(tmp$source)) {
+    mean <- round(sum((tmp %>% filter(source == i, estimate == "mean", name == v))$value), 4)
+    lb <- round(sum((tmp %>% filter(source == i, estimate == "lb", name == v))$value), 4)
+    ub <- round(sum((tmp %>% filter(source == i, estimate == "ub", name == v))$value), 4)
+    
+    if (i == "r0") {
+      x <- data.frame(mean = mean, lb = lb, ub = ub)
+    } else {
+      x <- data.frame(mean = mean * 100, lb = lb * 100, ub = ub * 100)
+    }
+    
+    x <- x %>%
+      mutate(CI = paste0("(", lb, " - ", ub, ")")) %>%
+      summarise(value = paste0(mean, " ", CI))
+    
+    out <- rbind(out, x)
+  }
+  
+  out <- as.data.frame(out) %>%
+    mutate(measure = unique(tmp$source),
+           variant = v) %>%
+    select(variant, measure, value)
+  
+  
+  natl_int_sev <- rbind(natl_int_sev, out)
+  
+}
+
+natl_int_sev <- natl_int_sev %>% pivot_wider(names_from = variant)
+
+rmarkdown::paged_table(natl_int_sev, options = list(rows.print = 16))
+```
+
+### Effective severity by variant
+```{r, echo = FALSE}
+further_process_sev <- function(x) {
+  
+  x <- x %>%
+    filter(strain == "Weighted") %>%
+    group_by(dominant_voc)
+  
+  filter_sev <- function (y) {
+    max <- y %>%
+      filter(mean == max(mean)) %>%
+      mutate(range = "max")
+    
+    min <- y %>%
+      filter(mean == min(mean)) %>%
+      mutate(range = "min")
+    
+    rbind(max, min) %>%
+      ungroup() %>%
+      arrange(dominant_voc) %>%
+      mutate_if(is.numeric,  list(~ round(., 4) * 100)) %>%
+      mutate(value = paste0(mean, "% (", lb, " - ", ub, ")")) %>%
+      select(!c(date, region, strain, mean, lb, ub))
+  }
+    
+  filter_sev(x)
+}
+
+further_sev <- purrr::map(sev, further_process_sev)
+
+further_sev <- purrr::map_df(further_sev, ~as.data.frame(.x), .id = "id") %>%
+  pivot_wider(names_from = id)
+
+
+rmarkdown::paged_table(further_sev, options = list(row.s.print = 8))
+```
+
+### Table of proportion protected against infection
+```{r, echo = FALSE}
+rmarkdown::paged_table(prop_immunity, options = list(cols.print = 6, rows.print = 11))
+```
+
+### Demography of hospital admissions and deaths
+```{r, echo = FALSE}
+age_bands <- get_age_band_labels(TRUE)
+
+demo <- list(admissions = get_model_demography(dat, age_bands, "england", "admissions") ,
+             deaths = get_model_demography(dat, age_bands, "england", "deaths_hosp"))
+
+dates <- c(min(demo$deaths$date),
+           seq.Date(as.Date("2020-11-01"), as.Date("2021-06-01"), "month"),
+           max(demo$deaths$date))
+
+demo_process <- function(x) {
+  x %>% 
+    pivot_wider() %>%
+    mutate(total = rowSums(.[-1L])) %>%
+    mutate_if(is.numeric,  list(~ . /total)) %>%
+    filter(date %in% dates) %>%
+    select(date, `80 plus`) %>%
+    mutate(rest = 1 - `80 plus`) %>%
+    mutate_if(is.numeric,  list(~ round(., 5) * 100))
+}
+
+demo <- purrr::map(demo, demo_process)
+```
+```{r}
+## Admissions
+rmarkdown::paged_table(demo$admissions, options = list(rows.print = 10))
+
+## Deaths
+rmarkdown::paged_table(demo$deaths, options = list(rows.print = 10))
+```
+
+
+### Age specific IHR and HFR driving demography of hospital admissions and deaths
+```{r, echo = FALSE}
+eff_sev_age <- list(
+  ihr = get_eff_sev_age(dat, "england", "ihr", vam_data, age_bands,
+                              age_bands_select = FALSE, vacc_uptake = TRUE,
+                              by_class = FALSE, plot = FALSE),
+  hfr = get_eff_sev_age(dat, "england", "hfr", vam_data, age_bands,
+                              age_bands_select = FALSE, vacc_uptake = TRUE,
+                              by_class = FALSE, plot = FALSE))
+
+eff_sev_process <- function(x) {
+  x <- x %>%
+    filter(region == "england") %>%
+    mutate_if(is.numeric, list(~ round(., 5) * 100)) %>%
+    select(!c(vacc_class, region)) %>%
+    pivot_wider(names_from = estimate, values_from = value) %>%
+    group_by(dominant_voc, age)
+  
+  max <- x %>% 
+    filter(mean == max(mean)) %>%
+    mutate(id = "max")
+  
+  min <- x %>% 
+    filter(mean == min(mean)) %>%
+    mutate(id = "min")
+  
+  x <- rbind(max, min) %>%
+    ungroup() %>%
+    group_by(date, dominant_voc, age, id) %>%
+    mutate(CI = paste0("(", lb, " - ", ub, ")")) %>%
+    summarise(value = paste0(mean, " ", CI)) %>%
+    mutate(age = factor(age, levels = seq(0, 80, 5))) %>%
+    arrange(age)
+  
+  x <- split(x, f = x$dominant_voc)
+}
+
+eff_sev <- suppressMessages(purrr::map(eff_sev_age, eff_sev_process))
+```
+```{r}
+# IHR Alpha
+rmarkdown::paged_table(eff_sev$ihr$Alpha, options = list(rows.print = 8))
+# HFR Alpha
+rmarkdown::paged_table(eff_sev$hfr$Alpha, options = list(rows.print = 8))
+```
+
+
+## Risk ratio  
+
+```{r, echo = FALSE}
+
+get_region_variants <- function(r) {
+    pars <- dat$samples[[r]]$pars
+    
+    # Take regional Rt_general at the start of the model for Wildtype R0
+    # then parametrically calculate for the VOCs
+    Wildtype <- dat$rt[[r]]$Rt_general[1, "weighted", ]
+    Alpha <- Wildtype * pars[, "ta_alpha"]
+    Delta <- Alpha * pars[, "ta_delta"]
+    Omicron <- Delta * pars[, "ta_omicron"]
+    
+    list(Wildtype = Wildtype,
+         Alpha = Alpha,
+         Delta = Delta,
+         Omicron = Omicron)
+}
+
+reg <- sircovid::regions("england")
+r0_variants <- lapply(reg, get_region_variants)
+r0_variants <- spimalot:::list_transpose(r0_variants)
+    
+get_reg_pop <- function(r) {
+  p <- dat$samples[[r]]$predict$transform(dat$samples[[r]]$pars[1, ])
+  sum(p[[1]]$pars$population)
+}
+    
+wts <- vapply(reg, get_reg_pop, numeric(1))
+    
+r0_variants <- lapply(r0_variants, function(x) {
+  apply(spimalot:::abind_quiet(x, along = 2), 1, weighted.mean, w = wts)})
+
+
+get_risk_ratio <- function(var1, var2, what) {
+  
+  if (what == "R0") {
+    rr <- r0_variants[[var2]] / r0_variants[[var1]]
+  } else {
+    int_sev_raw <- dat$intrinsic_severity_raw$england
+    i <- which(int_sev_raw$period == "Emergence3")
+    j1 <- which(int_sev_raw$variant == var1)
+    j2 <- which(int_sev_raw$variant == var2)
+  
+    rr <- int_sev_raw[[what]][i, j2, ] / int_sev_raw[[what]][i, j1, ]
+  }
+  
+  if (var1 == var2) {
+    out <- "-"
+  } else {
+    mean_rr <- sprintf('%#.2f', mean(rr)) 
+    lb_rr <- sprintf('%#.2f', round(quantile(rr, 0.025), 2))
+    ub_rr <- sprintf('%#.2f', round(quantile(rr, 0.975), 2))
+    out <- paste0(mean_rr, " (", lb_rr, " - ", ub_rr, ")" )
+  }
+  
+  out
+}
+
+strains <- c("Wildtype", "Alpha", "Delta", "Omicron")
+
+get_risk_ratio_table <- function(what) {
+  tab <- outer(strains, strains, Vectorize(function(x, y) get_risk_ratio(x, y, what)))
+  colnames(tab) <- strains
+  rownames(tab) <- strains
+  tab
+}
+
+rr_R0 <- get_risk_ratio_table("R0")
+rr_ihr <- get_risk_ratio_table("IHR")
+rr_hfr <- get_risk_ratio_table("HFR")
+rr_ifr <- get_risk_ratio_table("IFR")
+```
+
+
+# RR R_0
+```{r, echo = FALSE}
+print(rr_R0)
+```
+
+# RR IHR
+```{r, echo = FALSE}
+print(rr_ihr)
+```
+
+# RR HFR
+```{r, echo = FALSE}
+print(rr_hfr)
+```
+
+# RR IFR
+```{r, echo = FALSE}
+print(rr_ifr)
+```
+
+
+## Convergence diagnostics
+
+Gelman-Rubin and ESS convergence diagnostics from full chains:
+
+```{r, echo = FALSE}
+diagnostics <- get_convergence_diagnostic(dat)
+print(diagnostics)
+```

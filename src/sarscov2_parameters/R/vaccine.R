@@ -24,7 +24,8 @@ shift_doses <- function(vaccine_schedule, vaccine_days_to_effect) {
 }
 
 calculate_average_vacc_efficacy <- function(vaccine_efficacy, prop_pfizer) {
-  # unvaccinated / 1st dose full eff / 2nd dose full eff / waned / boosted
+  
+  # unvaccinated / 1st dose no eff / 1st dose full eff / 2nd dose full eff / waned / boosted
   vaccine_efficacy$week_wane <- NULL
   ret <- vaccine_efficacy %>%
     tidyr::pivot_longer(-c(type, vaccine, dose), names_to = "analysis") %>%
@@ -32,14 +33,17 @@ calculate_average_vacc_efficacy <- function(vaccine_efficacy, prop_pfizer) {
     # code dose numbers according to their vaccine strata
     dplyr::mutate(prop_pfizer = prop_pfizer[group],
                   stratum = forcats::fct_recode(as.character(dose),
-                                                "stratum_2" = "1",
-                                                "stratum_3" = "2",
-                                                "stratum_4" = "waned",
-                                                "stratum_5" = "booster")) %>%
+                                                "stratum_3" = "1",
+                                                "stratum_4" = "2",
+                                                "stratum_5" = "waned",
+                                                "stratum_6" = "booster",
+                                                "stratum_7" = "booster_waned")) %>%
     dplyr::select(-dose) %>%
     tidyr::pivot_wider(names_from = stratum) %>%
-    # add in strata 1 and 2 in which there is 0 vaccine protection
-    dplyr::mutate(stratum_1 = 0, .before = stratum_2) %>%
+    # add in strata 1 in which there is 0 vaccine protection
+    dplyr::mutate(stratum_1 = 0, .before = stratum_3) %>%
+    # add in strata 3 in which there is 0 vaccine protection for 3 weeks after dose 1
+    dplyr::mutate(stratum_2 = 0, .before = stratum_3) %>%
     tidyr::pivot_longer(dplyr::starts_with("stratum"), names_to = "stratum") %>%
     tidyr::pivot_wider(names_from = vaccine) %>%
     # calculate combined vaccine efficacy based on % of PF
@@ -56,6 +60,7 @@ get_vaccine_conditional_prob <- function(eff_death,
                                          eff_severe_disease,
                                          eff_disease, eff_infection,
                                          eff_onwards_transmission = NULL) {
+  
   n_group <- 19
   rel_susceptibility <- matrix(1 - eff_infection, n_group)
   rel_p_sympt <- matrix(1 - eff_disease, n_group) / rel_susceptibility
@@ -83,4 +88,46 @@ get_vaccine_conditional_prob <- function(eff_death,
   }
   
   res
+}
+
+add_vaccine_efficacy_booster_waned <- function(vaccine_efficacy) {
+  ve_booster_waned <- vaccine_efficacy %>% 
+    pivot_longer(!c("type", "vaccine", "dose"), names_to = "scenario") %>%
+    mutate(dose = case_when(dose == "1" ~ "dose1",
+                            dose == "2" ~ "dose2",
+                            TRUE ~ dose)) %>%
+    pivot_wider(names_from = dose) %>%
+    filter(vaccine == "PF") %>%
+    ## We want to ensure ((1 - VE[booster_waned]) / VE[booster_waned]) / 
+    ##                     ((1 - VE[booster]) / VE[booster]) =
+    ##                       ((1 - VE[waned]) / VE[waned]) / 
+    ##                         ((1 - VE[dose2]) / VE[dose2])
+    mutate(booster_waned = 1 / (1 + 
+                                  ((1 - booster) / booster) * 
+                                  ((1 - waned) / waned) / ((1 - dose2) / dose2))) %>%
+    pivot_longer(!c(type, vaccine, scenario), names_to = "dose") %>%
+    pivot_wider(names_from = scenario) %>%
+    filter(dose == "booster_waned")
+  
+  ve_booster_waned <- as.data.frame(ve_booster_waned)
+  
+  ## In case this has produced VE against a later stage of infection being LOWER
+  ## than VE against an earlier stage, we make sure VE against each stage is
+  ## at least equal to the VE against the previous stage
+  scenarios <- !(names(ve_booster_waned) %in% c("type", "vaccine", "dose"))
+  ve_booster_waned[ve_booster_waned$type == "disease", scenarios] <-
+    pmax(ve_booster_waned[ve_booster_waned$type == "infection", scenarios], 
+         ve_booster_waned[ve_booster_waned$type == "disease", scenarios])
+  ve_booster_waned[ve_booster_waned$type == "severe_disease", scenarios] <-
+    pmax(ve_booster_waned[ve_booster_waned$type == "disease", scenarios], 
+         ve_booster_waned[ve_booster_waned$type == "severe_disease", scenarios])
+  ve_booster_waned[ve_booster_waned$type == "death", scenarios] <-
+    pmax(ve_booster_waned[ve_booster_waned$type == "death", scenarios], 
+         ve_booster_waned[ve_booster_waned$type == "severe_disease", scenarios])
+  
+  ## We assume all booster efficacy (including waned) is that of PF
+  vaccine_efficacy <- rbind(vaccine_efficacy, ve_booster_waned)
+  ve_booster_waned$vaccine <- "AZ"
+  vaccine_efficacy <- rbind(vaccine_efficacy, ve_booster_waned)
+  vaccine_efficacy
 }

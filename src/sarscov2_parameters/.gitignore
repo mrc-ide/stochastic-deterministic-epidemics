@@ -1,4 +1,8 @@
+util.R
+vacc_doses_by_age_date_region_vaccine.csv
+s_gene_region.csv
+spim_parameters.rds
 data_vaccination.csv
+hyperparameters_serology.rds
 weighted_prior_ranges.csv
 parameters_*.*
-util.R
