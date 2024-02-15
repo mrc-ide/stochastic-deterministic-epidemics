@@ -1,18 +1,11 @@
-load_mcmc_parameters <- function(model_type, pars_set, adaptive_proposal, assumptions, deterministic,
-                                 multiregion) {
-                                   
-  message(sprintf("Using '%s' parameters", model_type))
+load_mcmc_parameters <- function(assumptions, deterministic) {
+
   message(sprintf("Assumptions are with '%s' parameters", assumptions))
   message(sprintf("Model will be run in the '%s' mode",
-                  if (deterministic && is.null(adaptive_proposal)) "deterministic"
-                  else if (deterministic && !is.null(adaptive_proposal)) "deterministic_adaptive"
-                  else "stochastic"))
-  message(sprintf("Regions will be treated %s",
-                  if (multiregion) "jointly" else "independently"))
-  path_pars <- file.path("pars", assumptions, tolower(model_type), pars_set,
-                        if (deterministic && is.null(adaptive_proposal)) "deterministic"
-                        else if (deterministic && !is.null(adaptive_proposal)) "deterministic_adaptive"
-                        else "stochastic")
+                  if (deterministic) "deterministic" else "stochastic"))
+  
+  path_pars <- file.path("pars", assumptions,
+                         if (deterministic) "deterministic" else "stochastic")
 
   info <- read_csv(file.path(path_pars, "info.csv"))
   ## "discrete" has been deprecated in mcstate and replaced by "integer"
@@ -24,16 +17,7 @@ load_mcmc_parameters <- function(model_type, pars_set, adaptive_proposal, assump
   ret <- list(info = info,
               proposal = proposal,
               prior = prior)
-
-  ## Later, we will want to make this optional, because we might want
-  ## to start from the last good point, but this is also similar to
-  ## how we share information between the deterministic and the
-  ## stochastic fits.
-  if (multiregion) {
-    message("Converting independent parameters to nested multiregion")
-    ret <- independent_to_multiregion(ret)
-  }
-
+  
   ret
 }
 
@@ -82,34 +66,6 @@ add_parameter <- function(pars, name, initial, min, max, proposal, integer) {
   prior <- prior[order(prior$region, prior$name), ]
 
   list(info = info, prior = prior, proposal = proposal)
-}
-
-
-update_pars_single_to_multistrain <- function(beta_date, restart_date) {
-  pars <- list(info = read_csv("parameters_info.csv"),
-               prior = read_csv("parameters_prior.csv"),
-               proposal = read_csv("parameters_proposal.csv"))
-
-  no_voc_data <- c("wales", "scotland", "northern_ireland")
-  region <- unique(pars$info$region)
-  initial_strain_transmission_2 <- ifelse(region %in% no_voc_data, 0, 1)
-  proposal_strain_transmission_2 <- ifelse(region %in% no_voc_data, 0, 0.02)
-  proposal_seed_date <- ifelse(region %in% no_voc_data, 0, 10)
-
-  pars <- add_parameter(pars, "strain_transmission_2",
-                        initial_strain_transmission_2, 0, 3,
-                        proposal_strain_transmission_2, FALSE)
-  pars <- add_parameter(pars, "strain_seed_date",
-                        sircovid::sircovid_date("2021-04-10"),
-                        sircovid::sircovid_date(restart_date),
-                        sircovid::sircovid_date("2021-05-31"),
-                        proposal_seed_date, TRUE)
-  message("Writing out updated parameters")
-  write_csv(pars$info, "parameters_info.csv")
-  write_csv(pars$proposal, "parameters_proposal.csv")
-  write_csv(pars$prior, "parameters_prior.csv")
-
-  pars$info
 }
 
 
