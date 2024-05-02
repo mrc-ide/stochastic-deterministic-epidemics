@@ -1,15 +1,15 @@
 
 orderly2::orderly_parameters(short_run = TRUE)
 
-orderly2::orderly_dependency("fits",
+orderly2::orderly_dependency("sir_fits",
                              'latest(parameter:short_run == this:short_run && parameter:deterministic == FALSE && parameter:adaptive_proposal == FALSE)',
                              c("stochastic_fit.rds" = "outputs/fit.rds"))
 
-orderly2::orderly_dependency("fits",
+orderly2::orderly_dependency("sir_fits",
                              "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE && parameter:adaptive_proposal == FALSE)",
                              c("deterministic_fit.rds" = "outputs/fit.rds"))
 
-orderly2::orderly_dependency("fits",
+orderly2::orderly_dependency("sir_fits",
                              "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE && parameter:adaptive_proposal == TRUE)",
                              c("deterministic_adaptive_fit.rds" = "outputs/fit.rds"))
 

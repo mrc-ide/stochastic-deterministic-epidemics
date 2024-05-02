@@ -1,6 +1,6 @@
 orderly2::orderly_parameters(short_run = TRUE)
 
-orderly2::orderly_dependency("filter_test",
+orderly2::orderly_dependency("sir_filter_test",
                              "latest(parameter:short_run == this:short_run)",
                             c("deterministic_fit.rds" = "deterministic_fit.rds",
                               "deterministic_adaptive_fit.rds" = "deterministic_adaptive_fit.rds",

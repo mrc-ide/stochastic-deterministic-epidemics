@@ -2,7 +2,7 @@ orderly2::orderly_parameters(short_run = TRUE,
                             deterministic = TRUE,
                             adaptive_proposal = TRUE)
 
-orderly2::orderly_dependency("data", "latest()",
+orderly2::orderly_dependency("sir_data", "latest()",
                             c("data.rds" = "outputs/data.rds",
                               "true_history.rds" = "outputs/true_history.rds",
                               "sir.R" = "sir.R"))
