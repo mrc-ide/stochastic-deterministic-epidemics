@@ -3,7 +3,8 @@ orderly2::orderly_parameters(short_run = TRUE)
 
 orderly2::orderly_dependency("sir_fits",
                              'latest(parameter:short_run == this:short_run && parameter:deterministic == FALSE && parameter:adaptive_proposal == FALSE)',
-                             c("stochastic_fit.rds" = "outputs/fit.rds"))
+                             c("stochastic_fit.rds" = "outputs/fit.rds",
+                               "sir.R" = "sir.R"))
 
 orderly2::orderly_dependency("sir_fits",
                              "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE && parameter:adaptive_proposal == FALSE)",
@@ -26,6 +27,9 @@ orderly2::orderly_shared_resource(util.R = "util.R")
 orderly2::orderly_resource("support.R")
 source("util.R")
 source("support.R")
+
+library(mcstate)
+library(odin.dust)
 
 stochastic_fit <- readRDS("stochastic_fit.rds")
 deterministic_adaptive_fit <- readRDS("deterministic_adaptive_fit.rds")
@@ -55,7 +59,7 @@ dir.create("outputs", FALSE, TRUE)
 set.seed(1234)
 
 data <- stoch_sir_fit$predict$filter$data
-sir <- stoch_sir_fit$predict$filter$model
+sir <- odin.dust::odin_dust("sir.R")
 compare <- stoch_sir_fit$predict$filter$compare
 index <- stoch_sir_fit$predict$filter$index
 n_particles <- 192

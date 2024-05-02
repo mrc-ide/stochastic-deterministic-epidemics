@@ -11,6 +11,10 @@ orderly2::orderly_artefact("Traceplots",
                            "figs/traceplots.png")
 orderly2::orderly_artefact("Fit object",
                            "outputs/fit.rds")
+orderly2::orderly_artefact(
+  "Model code for downstream compilation",
+  "sir.R"
+)
 
 orderly2::orderly_shared_resource(util.R = "util.R")
 orderly2::orderly_resource("plot.R")

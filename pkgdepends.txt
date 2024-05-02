@@ -15,6 +15,7 @@ abind
 here
 mcstate
 dust
+odin.dust
 spimalot
 purrr
 stringr
