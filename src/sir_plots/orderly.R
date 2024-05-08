@@ -9,11 +9,12 @@ orderly2::orderly_dependency("sir_filter_test",
                               "filter_samples.rds" = "outputs/filter_samples.rds"))
 
 orderly2::orderly_artefact("Plots",
-                           c("figs/create_particle_filter_plot.png",
-                             "figs/plot_combined_parameter_correlation_heatmap.png",
-                             "figs/plot_filter_samples.png",
-                             "figs/plot_parameter_correlation_ggplot.png",
-                             "figs/plot_sir_model.png"))
+                           c("figs/particle_filter.png",
+                             "figs/combined_parameter_correlation_heatmap.png",
+                             "figs/filter_samples.png",
+                             "figs/parameter_correlation.png",
+                             "figs/model_fit_prevalence.png",
+                             "figs/model_fit_incidence.png"))
 
 orderly2::orderly_shared_resource(util.R = "util.R")
 orderly2::orderly_resource("support.R")
@@ -42,7 +43,7 @@ names(filter_samples)[2] <- "stoch_filtered_samples"
 
 true_history <- stochastic_fit$true_history
 
-incidence <- true_history["cases_inc", 1, ]
+incidence <- deterministic_fit$data$cases
 
 sample_pars_index <- which.max(stoch_sir_fit$pars_full[, "gamma"])
 param_values <- seq(from = 0,
@@ -57,17 +58,30 @@ samples_df <- rbind(det_df, stoch_df)
 # Create directory for figures
 dir.create("figs", showWarnings = FALSE)
 
-# List of plotting functions and their arguments
-plot_functions <- list(
-  plot_parameter_correlation_ggplot = list(stoch_sir_fit, det_sir_fit, det_adap_sir_fit),
-  plot_combined_parameter_correlation_heatmap = list(stoch_sir_fit, det_sir_fit, det_adap_sir_fit),
-  plot_sir_model = list(det_sir_fit, det_adap_sir_fit, stoch_sir_fit, true_history, incidence, "I"),
-  plot_filter_samples = list(samples_df),
-  create_particle_filter_plot = list(filter_data)
-)
+ggsave(filename = "figs/parameter_correlation.png", 
+       plot = plot_parameter_correlation_ggplot(stoch_sir_fit, det_sir_fit, 
+                                                det_adap_sir_fit), 
+       bg = "white", width = 15, height = 9, dpi = 200)
 
-# Generate and save each plot
-lapply(names(plot_functions), function(func_name) {
-  file_name <- paste0("figs/", func_name, ".png")
-  generate_and_save_plots(func_name, plot_functions[[func_name]], file_name)
-})
+ggsave(filename = "figs/combined_parameter_correlation_heatmap.png", 
+       plot = plot_combined_parameter_correlation_heatmap(
+         stoch_sir_fit, det_sir_fit, det_adap_sir_fit), 
+       bg = "white", width = 15, height = 9, dpi = 200)
+
+ggsave(filename = "figs/model_fit_prevalence.png", 
+       plot = plot_sir_model(det_sir_fit, det_adap_sir_fit, stoch_sir_fit, 
+                             true_history, incidence, "I"), 
+       bg = "white", width = 15, height = 9, dpi = 200)
+
+ggsave(filename = "figs/model_fit_incidence.png", 
+       plot = plot_sir_model(det_sir_fit, det_adap_sir_fit, stoch_sir_fit, 
+                             true_history, incidence, "cases_inc"), 
+       bg = "white", width = 15, height = 9, dpi = 200)
+
+ggsave(filename = "figs/filter_samples.png", 
+       plot = plot_filter_samples(samples_df), 
+       bg = "white", width = 15, height = 9, dpi = 200)
+
+ggsave(filename = "figs/particle_filter.png", 
+       plot = create_particle_filter_plot(filter_data), 
+       bg = "white", width = 15, height = 9, dpi = 200)

@@ -76,7 +76,7 @@ plot_combined_parameter_correlation_heatmap <- function(stoch_sir_fit, det_sir_f
 
 # Function to process simulation results for state plot
 process_sim_results <- function(sim_data, name_prefix, state) {
-  res <- sim_data$trajectories$state[state, ,-1L]
+  res <- sim_data$trajectories$state[state, , ]
   y <- cbind(colMeans(res),
              t(apply(res, 2, quantile, probs = c(0.025, 0.975))))
   colnames(y) <- c(paste0(name_prefix, "_mean"),
@@ -93,18 +93,24 @@ plot_sir_model <- function(det_sir_fit, det_adap_sir_fit, stoch_sir_fit, true_hi
   y3 <- process_sim_results(stoch_sir_fit, "stoch", state)
   
   # Add true history data to the stochastic results
-  y3 <- cbind(y3, data = true_history[state, ,-1L])
+  y3 <- cbind(y3, data = true_history[state, , ])
   
   # Combine all results
   y <- cbind(y1, y2, y3)
   y <- as.data.frame(y)
   
   # Prepare date for x-axis
-  date <- true_history[1, ,1:100]
+  date <- true_history["time", , ]
     # Use viridis palette for colorblind-friendly colors
   viridis_colors <- viridis(4)
   fit_cols <- setNames(viridis_colors, c("det_mean", "adap_mean", "stoch_mean", "data"))
 
+  if (state == "I") {
+    ylab <- "Infection prevalence"
+  } else if (state == "cases_inc") {
+    ylab <- "Infection incidence"
+  }
+  
   # Create the plot with consistent aesthetics
   ggplot(y, aes(x = date)) +
     geom_line(aes(y = det_mean, color = "det_mean"), size = 1) +
@@ -113,11 +119,11 @@ plot_sir_model <- function(det_sir_fit, det_adap_sir_fit, stoch_sir_fit, true_hi
     geom_ribbon(aes(ymin = adap_lb, ymax = adap_ub, fill = "adap_mean"), alpha = 0.25) +
     geom_line(aes(y = stoch_mean, color = "stoch_mean"), size = 1) +
     geom_ribbon(aes(ymin = stoch_lb, ymax = stoch_ub, fill = "stoch_mean"), alpha = 0.25) +
-    geom_point(aes(y = data, color = "data"), size = 1.5) +
+    geom_point(aes(y = data, color = "truth"), size = 1.5) +
     scale_color_manual(values = fit_cols) +
     scale_fill_manual(values = fit_cols) +
     labs(
-      y = "Daily Infections",
+      y = ylab,
       x = "Time (Days)",
       title = "SIR Model States",
       color = "Type",
@@ -204,9 +210,4 @@ plot_filter_samples <- function(samples_df) {
       panel.grid.minor = element_blank(),
       axis.line = element_blank()
     )
-}
-# Function to generate and save plots
-generate_and_save_plots <- function(func_name, args, file_name) {
-  plot <- do.call(func_name, args)
-  ggsave(filename = file_name, plot = plot, bg = "white", width = 15, height = 9, dpi = 200)
 }
