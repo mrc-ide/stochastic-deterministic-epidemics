@@ -1,5 +1,6 @@
 
-short_run <- TRUE
+short_run <- FALSE
+skip_filter_test <- TRUE
 
 ## Create SIR model and SIR data simulation
 orderly2::orderly_run("sir_data")
@@ -53,13 +54,17 @@ stoch_result <- hipercow::task_result(stoch_fit)
 
 filter_test <- hipercow::task_create_expr(
   orderly2::orderly_run('sir_filter_test',
-                        parameters = list(short_run = short_run)),
+                        parameters = list(short_run = short_run,
+                                          skip_filter_test = skip_filter_test)),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                            cores = 32)
 )
+
 filter_test_result <- hipercow::task_result(filter_test)
 
 
 ## 4. Create plots from SIR fits and particle filter samples
 orderly2::orderly_run("sir_plots",
-                      list(short_run = short_run))
+                      list(short_run = short_run,
+                           skip_filter_test = skip_filter_test))
+
