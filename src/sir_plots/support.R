@@ -1,10 +1,9 @@
 # Function to plot parameter correlations
-plot_parameter_correlation_ggplot <- function(stoch_sir_fit, det_sir_fit, det_adap_sir_fit) {  
+plot_parameter_correlation_ggplot <- function(stoch_sir_fit, det_sir_fit) {  
   # Combine the data into a single data frame
   df_stoch <- data.frame(beta = stoch_sir_fit$pars[, 1], gamma = stoch_sir_fit$pars[, 2], Type = "Stochastic")
   df_det <- data.frame(beta = det_sir_fit$pars[, 1], gamma = det_sir_fit$pars[, 2], Type = "Deterministic")
-  df_adap <- data.frame(beta = det_adap_sir_fit$pars[, 1], gamma = det_adap_sir_fit$pars[, 2], Type = "Adaptive")
-  df <- rbind(df_stoch, df_det, df_adap)
+  df <- rbind(df_stoch, df_det)
   
   # Plot using ggplot2
   ggplot(df, aes(x = beta, y = gamma, color = Type)) +
@@ -43,12 +42,11 @@ create_density_df <- function(df, x_bins, y_bins) {
 }
 
 # Function to plot combined parameter correlation heatmap
-plot_combined_parameter_correlation_heatmap <- function(stoch_sir_fit, det_sir_fit, det_adap_sir_fit) {
+plot_combined_parameter_correlation_heatmap <- function(stoch_sir_fit, det_sir_fit) {
   # Combine the data into a single data frame
   df_stoch <- data.frame(beta = stoch_sir_fit$pars[, 1], gamma = stoch_sir_fit$pars[, 2], Type = "Stochastic")
   df_det <- data.frame(beta = det_sir_fit$pars[, 1], gamma = det_sir_fit$pars[, 2], Type = "Deterministic")
-  df_adap <- data.frame(beta = det_adap_sir_fit$pars[, 1], gamma = det_adap_sir_fit$pars[, 2], Type = "Adaptive")
-  df <- rbind(df_stoch, df_det, df_adap)
+  df <- rbind(df_stoch, df_det)
 
   # Plot using ggplot2 with density heatmap
   ggplot(df, aes(x = beta, y = gamma, fill = ..density..)) +
@@ -86,24 +84,23 @@ process_sim_results <- function(sim_data, name_prefix, state) {
 }
 
 # Function to plot SIR states
-plot_sir_model <- function(det_sir_fit, det_adap_sir_fit, stoch_sir_fit, true_history, incidence, state) {
+plot_sir_model <- function(det_sir_fit, stoch_sir_fit, true_history, incidence, state) {
   # Process simulation results
   y1 <- process_sim_results(det_sir_fit, "det", state)
-  y2 <- process_sim_results(det_adap_sir_fit, "adap", state)
-  y3 <- process_sim_results(stoch_sir_fit, "stoch", state)
+  y2 <- process_sim_results(stoch_sir_fit, "stoch", state)
   
   # Add true history data to the stochastic results
-  y3 <- cbind(y3, data = true_history[state, , ])
+  y2 <- cbind(y2, data = true_history[state, , ])
   
   # Combine all results
-  y <- cbind(y1, y2, y3)
+  y <- cbind(y1, y2)
   y <- as.data.frame(y)
   
   # Prepare date for x-axis
   date <- true_history["time", , ]
     # Use viridis palette for colorblind-friendly colors
-  viridis_colors <- viridis(4)
-  fit_cols <- setNames(viridis_colors, c("det_mean", "adap_mean", "stoch_mean", "data"))
+  viridis_colors <- viridis(3)
+  fit_cols <- setNames(viridis_colors, c("det_mean", "stoch_mean", "data"))
 
   if (state == "I") {
     ylab <- "Infection prevalence"
@@ -115,8 +112,6 @@ plot_sir_model <- function(det_sir_fit, det_adap_sir_fit, stoch_sir_fit, true_hi
   ggplot(y, aes(x = date)) +
     geom_line(aes(y = det_mean, color = "det_mean"), size = 1) +
     geom_ribbon(aes(ymin = det_lb, ymax = det_ub, fill = "det_mean"), alpha = 0.25) +
-    geom_line(aes(y = adap_mean, color = "adap_mean"), size = 1) +
-    geom_ribbon(aes(ymin = adap_lb, ymax = adap_ub, fill = "adap_mean"), alpha = 0.25) +
     geom_line(aes(y = stoch_mean, color = "stoch_mean"), size = 1) +
     geom_ribbon(aes(ymin = stoch_lb, ymax = stoch_ub, fill = "stoch_mean"), alpha = 0.25) +
     geom_point(aes(y = data, color = "truth"), size = 1.5) +

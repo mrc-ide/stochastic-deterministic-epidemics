@@ -1,6 +1,5 @@
 orderly2::orderly_parameters(short_run = TRUE,
-                            deterministic = TRUE,
-                            adaptive_proposal = TRUE)
+                            deterministic = TRUE)
 
 orderly2::orderly_dependency("sir_data", "latest()",
                             c("data.rds" = "outputs/data.rds",
@@ -25,10 +24,6 @@ source("support.R")
 
 library(mcstate)
 library(odin.dust)
-
-if (!deterministic && adaptive_proposal) {
-    stop("adaptive pMCMC method not yet implemented, please ensure deterministic = TRUE if adaptive_proposal != NULL")
-}
 
 sir <- odin.dust::odin_dust("sir.R")
 
@@ -69,6 +64,7 @@ if (deterministic) {
   n_threads <- n_threads_total / n_workers
   p <- mcstate::particle_deterministic$new(data, sir, compare = NULL, index = index,
                                             n_threads = n_threads)
+  adaptive_proposal <- TRUE
 } else {
   max_workers <- 4
   pos <- seq_len(max_workers)
@@ -79,6 +75,7 @@ if (deterministic) {
   p <- mcstate::particle_filter$new(data, sir, n_particles = n_particles,
                                     compare = NULL, index = index,
                                     n_threads = n_threads)
+  adaptive_proposal <- FALSE
 }
 n_threads <- n_threads_total / n_workers
 

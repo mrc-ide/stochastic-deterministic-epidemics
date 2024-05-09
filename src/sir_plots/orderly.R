@@ -3,7 +3,6 @@ orderly2::orderly_parameters(short_run = TRUE, skip_filter_test = FALSE)
 orderly2::orderly_dependency("sir_filter_test",
                              "latest(parameter:short_run == this:short_run)",
                             c("deterministic_fit.rds" = "deterministic_fit.rds",
-                              "deterministic_adaptive_fit.rds" = "deterministic_adaptive_fit.rds",
                               "stochastic_fit.rds" = "stochastic_fit.rds",
                               "filter_data.rds" = "outputs/filter_data.rds",
                               "filter_samples.rds" = "outputs/filter_samples.rds"))
@@ -32,11 +31,9 @@ library(viridis)
 library(reshape2)
 
 deterministic_fit <- readRDS("deterministic_fit.rds")
-deterministic_adaptive_fit <- readRDS("deterministic_adaptive_fit.rds")
 stochastic_fit <- readRDS("stochastic_fit.rds")
 
 det_sir_fit <- deterministic_fit$samples
-det_adap_sir_fit <- deterministic_adaptive_fit$samples
 stoch_sir_fit <- stochastic_fit$samples
 
 filter_data <- readRDS("filter_data.rds")
@@ -50,22 +47,21 @@ incidence <- deterministic_fit$data$cases
 dir.create("figs", showWarnings = FALSE)
 
 ggsave(filename = "figs/parameter_correlation.png", 
-       plot = plot_parameter_correlation_ggplot(stoch_sir_fit, det_sir_fit, 
-                                                det_adap_sir_fit), 
+       plot = plot_parameter_correlation_ggplot(stoch_sir_fit, det_sir_fit), 
        bg = "white", width = 15, height = 9, dpi = 200)
 
 ggsave(filename = "figs/combined_parameter_correlation_heatmap.png", 
        plot = plot_combined_parameter_correlation_heatmap(
-         stoch_sir_fit, det_sir_fit, det_adap_sir_fit), 
+         stoch_sir_fit, det_sir_fit), 
        bg = "white", width = 15, height = 9, dpi = 200)
 
 ggsave(filename = "figs/model_fit_prevalence.png", 
-       plot = plot_sir_model(det_sir_fit, det_adap_sir_fit, stoch_sir_fit, 
+       plot = plot_sir_model(det_sir_fit, stoch_sir_fit, 
                              true_history, incidence, "I"), 
        bg = "white", width = 15, height = 9, dpi = 200)
 
 ggsave(filename = "figs/model_fit_incidence.png", 
-       plot = plot_sir_model(det_sir_fit, det_adap_sir_fit, stoch_sir_fit, 
+       plot = plot_sir_model(det_sir_fit, stoch_sir_fit, 
                              true_history, incidence, "cases_inc"), 
        bg = "white", width = 15, height = 9, dpi = 200)
 
@@ -75,7 +71,7 @@ if (!skip_filter_test) {
   
   sample_pars_index <- which.max(stoch_sir_fit$pars_full[, "gamma"])
   param_values <- seq(from = 0,
-                      to = det_adap_sir_fit$pars_full[sample_pars_index, ]["beta"] * 3,
+                      to = det_sir_fit$pars_full[sample_pars_index, ]["beta"] * 3,
                       length.out = length(filter_samples$det_filtered_samples))
   
   det_df <- create_filter_df(filter_samples, "det", param_values)

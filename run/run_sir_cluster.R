@@ -20,30 +20,16 @@ hipercow::hipercow_provision()
 det_fit <- hipercow::task_create_expr(
   orderly2::orderly_run('sir_fits',
                         parameters = list(short_run = short_run,
-                                          deterministic = TRUE,
-                                          adaptive_proposal = FALSE)),
+                                          deterministic = TRUE)),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                            cores = 4)
 )
 det_result <- hipercow::task_result(det_fit)
 
-
-det_adap_fit <- hipercow::task_create_expr(
-  orderly2::orderly_run('sir_fits',
-                        parameters = list(short_run = short_run,
-                                          deterministic = TRUE,
-                                          adaptive_proposal = TRUE)),
-  resources = hipercow::hipercow_resources(queue = 'AllNodes',
-                                           cores = 4)
-)
-det_adap_result <- hipercow::task_result(det_adap_fit)
-
-
 stoch_fit <- hipercow::task_create_expr(
   orderly2::orderly_run('sir_fits',
                         parameters = list(short_run = short_run,
-                                          deterministic = FALSE,
-                                          adaptive_proposal = FALSE)),
+                                          deterministic = FALSE)),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                            cores = 32)
 )

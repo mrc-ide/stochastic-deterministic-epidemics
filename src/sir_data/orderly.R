@@ -22,9 +22,9 @@ saveRDS(sir, "outputs/model.rds")
 pars <- list(beta = 0.2,
              gamma = 0.1)
 
-mod <- sir$new(pars, 0, 1, seed = 1L, deterministic = TRUE)
+mod <- sir$new(pars, 0, 1, seed = 1L)
 
-n_days <- 100
+n_days <- 130
 
 y <- mod$simulate(seq(0, 4 * n_days, by = 4))
 rownames(y) <- names(mod$info()$index)

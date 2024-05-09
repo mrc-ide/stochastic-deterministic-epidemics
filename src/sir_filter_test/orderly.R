@@ -2,22 +2,17 @@
 orderly2::orderly_parameters(short_run = TRUE, skip_filter_test = FALSE)
 
 orderly2::orderly_dependency("sir_fits",
-                             'latest(parameter:short_run == this:short_run && parameter:deterministic == FALSE && parameter:adaptive_proposal == FALSE)',
+                             'latest(parameter:short_run == this:short_run && parameter:deterministic == FALSE)',
                              c("stochastic_fit.rds" = "outputs/fit.rds",
                                "sir.R" = "sir.R"))
 
 orderly2::orderly_dependency("sir_fits",
-                             "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE && parameter:adaptive_proposal == FALSE)",
+                             "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE)",
                              c("deterministic_fit.rds" = "outputs/fit.rds"))
-
-orderly2::orderly_dependency("sir_fits",
-                             "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE && parameter:adaptive_proposal == TRUE)",
-                             c("deterministic_adaptive_fit.rds" = "outputs/fit.rds"))
 
 orderly2::orderly_artefact("Fit objects for downstream usage",
                            c("stochastic_fit.rds",
-                             "deterministic_fit.rds",
-                             "deterministic_adaptive_fit.rds"))
+                             "deterministic_fit.rds"))
 
 orderly2::orderly_artefact("Filter outputs",
                            c("outputs/filter_data.rds",
@@ -32,15 +27,15 @@ library(mcstate)
 library(odin.dust)
 
 stochastic_fit <- readRDS("stochastic_fit.rds")
-deterministic_adaptive_fit <- readRDS("deterministic_adaptive_fit.rds")
+deterministic_fit <- readRDS("deterministic_fit.rds")
 
-det_adap_sir_fit <- deterministic_adaptive_fit$samples
+det_sir_fit <- deterministic_fit$samples
 stoch_sir_fit <- stochastic_fit$samples
 
-det_adap_sir_pars <- deterministic_adaptive_fit$pars
+det_sir_pars <- deterministic_fit$pars
 stoch_sir_pars <- stochastic_fit$pars
 
-det_adap_pars <- det_adap_sir_fit$pars_full
+det_pars <- det_sir_fit$pars_full
 stoch_pars <- stoch_sir_fit$pars_full
 
 if (short_run) {
@@ -78,7 +73,7 @@ if (skip_filter_test) {
   #sample_pars_index <- sample(nrow(stoch_pars), 1)
   sample_pars_index <- which.max(stoch_pars[, "gamma"])
   ## parameters to index and test 
-  det_adap_pars <- det_adap_pars[sample_pars_index, ]
+  det_pars <- det_pars[sample_pars_index, ]
   stoch_pars <- stoch_pars[sample_pars_index, ]
   param_test <- "beta"
   
@@ -88,7 +83,7 @@ if (skip_filter_test) {
   
   ## parameter values at either side of the fitted parameter value
   param_values <- seq(from = 0,
-                      to = det_adap_pars[param_test] * 3,
+                      to = det_pars[param_test] * 3,
                       length.out = n_try)
   
   ## run filter on single parameter
@@ -96,9 +91,9 @@ if (skip_filter_test) {
   ## calculate the log-posterior (likelihood + prior)
   det_filtered_samples <- vapply(seq_along(param_values),
                                  function(i) {
-                                   det_adap_pars[param_test] <- param_values[i]
-                                   filter_stochastic$run(stoch_sir_pars$model(det_adap_pars)) +
-                                     stoch_sir_pars$prior(det_adap_pars)
+                                   det_pars[param_test] <- param_values[i]
+                                   filter_stochastic$run(stoch_sir_pars$model(det_pars)) +
+                                     stoch_sir_pars$prior(det_pars)
                                  },
                                  numeric(1)
   )
@@ -130,7 +125,7 @@ if (skip_filter_test) {
   
   ## define the number of particle sizes to test
   ## the number of particle filter iterations
-  det_adap_pars <- det_adap_sir_fit$pars
+  det_pars <- det_sir_fit$pars
   stoch_pars <- stoch_sir_fit$pars
   n_particles <- c(1,192,1024) #2 ^ c(6:10)
   filter_data <- list(NULL)
@@ -153,8 +148,8 @@ if (skip_filter_test) {
   }
   
   deterministic_filtered <-
-    vapply(n_particles, function (i) run_n_particles(i, det_adap_pars),
-           numeric(nrow(det_adap_pars)))
+    vapply(n_particles, function (i) run_n_particles(i, det_pars),
+           numeric(nrow(det_pars)))
   
   stochastic_filtered <-
     vapply(n_particles, function (i) run_n_particles(i, stoch_pars),
