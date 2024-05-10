@@ -49,7 +49,7 @@ plot_combined_parameter_correlation_heatmap <- function(stoch_sir_fit, det_sir_f
   df <- rbind(df_stoch, df_det)
 
   # Plot using ggplot2 with density heatmap
-  ggplot(df, aes(x = beta, y = gamma, fill = ..density..)) +
+  ggplot(df, aes(x = beta, y = gamma, fill = after_stat(density))) +
     stat_density_2d(geom = "raster", contour = FALSE) +
     scale_fill_viridis_c(begin = 0, end = 1) +  # Adjust color scale to increase brightness at low end
     facet_wrap(~ Type) +
@@ -110,9 +110,9 @@ plot_sir_model <- function(det_sir_fit, stoch_sir_fit, true_history, incidence, 
   
   # Create the plot with consistent aesthetics
   ggplot(y, aes(x = date)) +
-    geom_line(aes(y = det_mean, color = "det_mean"), size = 1) +
+    geom_line(aes(y = det_mean, color = "det_mean"), linewidth = 1) +
     geom_ribbon(aes(ymin = det_lb, ymax = det_ub, fill = "det_mean"), alpha = 0.25) +
-    geom_line(aes(y = stoch_mean, color = "stoch_mean"), size = 1) +
+    geom_line(aes(y = stoch_mean, color = "stoch_mean"), linewidth = 1) +
     geom_ribbon(aes(ymin = stoch_lb, ymax = stoch_ub, fill = "stoch_mean"), alpha = 0.25) +
     geom_point(aes(y = data, color = "truth"), size = 1.5) +
     scale_color_manual(values = fit_cols) +
