@@ -4,48 +4,15 @@ orderly2::orderly_shared_resource(util.R = "util.R")
 
 orderly2::orderly_resource("paper_numbers.Rmd")
 
-orderly2::orderly_dependency(
-  "sarscov2_fits",
-  'latest(parameter:region == "london" && parameter:assumptions == this:assumptions && parameter:short_run == this:short_run && parameter:deterministic == this:deterministic)',
-  c("regional_results/london/fit.rds" = "outputs/fit.rds",
-    "regional_figs/pmcmc_traceplots_london.pdf" = "outputs/pmcmc_traceplots.pdf",
-    "regional_figs/multipage/pmcmc_traceplots_london_separate.pdf" = "outputs/pmcmc_traceplots_separate.pdf"))
-orderly2::orderly_dependency(
-  "sarscov2_fits",
-  'latest(parameter:region == "east_of_england" && parameter:assumptions == this:assumptions && parameter:short_run == this:short_run && parameter:deterministic == this:deterministic)',
-  c("regional_results/east_of_england/fit.rds" = "outputs/fit.rds",
-    "regional_figs/pmcmc_traceplots_east_of_england.pdf" = "outputs/pmcmc_traceplots.pdf",
-    "regional_figs/multipage/pmcmc_traceplots_east_of_england_separate.pdf" = "outputs/pmcmc_traceplots_separate.pdf"))
-orderly2::orderly_dependency(
-  "sarscov2_fits",
-  'latest(parameter:region == "midlands" && parameter:assumptions == this:assumptions && parameter:short_run == this:short_run && parameter:deterministic == this:deterministic)',
-  c("regional_results/midlands/fit.rds" = "outputs/fit.rds",
-    "regional_figs/pmcmc_traceplots_midlands.pdf" = "outputs/pmcmc_traceplots.pdf",
-    "regional_figs/multipage/pmcmc_traceplots_midlands_separate.pdf" = "outputs/pmcmc_traceplots_separate.pdf"))
-orderly2::orderly_dependency(
-  "sarscov2_fits",
-  'latest(parameter:region == "north_east_and_yorkshire" && parameter:assumptions == this:assumptions && parameter:short_run == this:short_run && parameter:deterministic == this:deterministic)',
-  c("regional_results/north_east_and_yorkshire/fit.rds" = "outputs/fit.rds",
-    "regional_figs/pmcmc_traceplots_north_east_and_yorkshire.pdf" = "outputs/pmcmc_traceplots.pdf",
-    "regional_figs/multipage/pmcmc_traceplots_north_east_and_yorkshire_separate.pdf" = "outputs/pmcmc_traceplots_separate.pdf"))
-orderly2::orderly_dependency(
-  "sarscov2_fits",
-  'latest(parameter:region == "north_west" && parameter:assumptions == this:assumptions && parameter:short_run == this:short_run && parameter:deterministic == this:deterministic)',
-  c("regional_results/north_west/fit.rds" = "outputs/fit.rds",
-    "regional_figs/pmcmc_traceplots_north_west.pdf" = "outputs/pmcmc_traceplots.pdf",
-    "regional_figs/multipage/pmcmc_traceplots_north_west_separate.pdf" = "outputs/pmcmc_traceplots_separate.pdf"))
-orderly2::orderly_dependency(
-  "sarscov2_fits",
-  'latest(parameter:region == "south_east" && parameter:assumptions == this:assumptions && parameter:short_run == this:short_run && parameter:deterministic == this:deterministic)',
-  c("regional_results/south_east/fit.rds" = "outputs/fit.rds",
-    "regional_figs/pmcmc_traceplots_south_east.pdf" = "outputs/pmcmc_traceplots.pdf",
-    "regional_figs/multipage/pmcmc_traceplots_south_east_separate.pdf" = "outputs/pmcmc_traceplots_separate.pdf"))
-orderly2::orderly_dependency(
-  "sarscov2_fits",
-  'latest(parameter:region == "south_west" && parameter:assumptions == this:assumptions && parameter:short_run == this:short_run && parameter:deterministic == this:deterministic)',
-  c("regional_results/south_west/fit.rds" = "outputs/fit.rds",
-    "regional_figs/pmcmc_traceplots_south_west.pdf" = "outputs/pmcmc_traceplots.pdf",
-    "regional_figs/multipage/pmcmc_traceplots_south_west_separate.pdf" = "outputs/pmcmc_traceplots_separate.pdf"))
+for (r in sircovid::regions("england")) {
+  orderly2::orderly_dependency(
+    "sarscov2_fits",
+    quote(latest(parameter:region == environment:r && parameter:assumptions == this:assumptions && parameter:short_run == this:short_run && parameter:deterministic == this:deterministic)),
+    c("regional_results/${r}/fit.rds" = "outputs/fit.rds",
+      "regional_figs/pmcmc_traceplots_${r}.pdf" = "outputs/pmcmc_traceplots.pdf",
+      "regional_figs/multipage/pmcmc_traceplots_${r}_separate.pdf" = "outputs/pmcmc_traceplots_separate.pdf"))  
+}
+
 orderly2::orderly_dependency(
   "sarscov2_data",
   "latest",
