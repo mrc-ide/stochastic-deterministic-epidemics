@@ -114,7 +114,7 @@ if (skip_filter_test) {
                                   numeric(1)
   )
   
-  stoch_filtered_sample <- unlist(stoch_filtered_sample)
+  stoch_filtered_samples <- unlist(stoch_filtered_samples)
   
   ## save filter outputs
   filter_samples <- list(det_filtered_samples, stoch_filtered_samples)
