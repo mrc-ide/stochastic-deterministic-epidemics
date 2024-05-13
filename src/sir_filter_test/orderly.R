@@ -1,13 +1,15 @@
 
-orderly2::orderly_parameters(short_run = TRUE, skip_filter_test = FALSE)
+orderly2::orderly_parameters(short_run = TRUE, 
+                             data_seed = 1L,
+                             skip_filter_test = FALSE)
 
 orderly2::orderly_dependency("sir_fits",
-                             'latest(parameter:short_run == this:short_run && parameter:deterministic == FALSE)',
+                             'latest(parameter:short_run == this:short_run && parameter:deterministic == FALSE && parameter:data_seed == this:data_seed)',
                              c("stochastic_fit.rds" = "outputs/fit.rds",
                                "sir.R" = "sir.R"))
 
 orderly2::orderly_dependency("sir_fits",
-                             "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE)",
+                             "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE && parameter:data_seed == this:data_seed)",
                              c("deterministic_fit.rds" = "outputs/fit.rds"))
 
 orderly2::orderly_artefact("Fit objects for downstream usage",

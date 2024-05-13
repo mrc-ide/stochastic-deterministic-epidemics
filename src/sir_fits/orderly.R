@@ -1,7 +1,9 @@
 orderly2::orderly_parameters(short_run = TRUE,
-                            deterministic = TRUE)
+                             deterministic = TRUE,
+                             data_seed = 1L)
 
-orderly2::orderly_dependency("sir_data", "latest()",
+orderly2::orderly_dependency("sir_data", 
+                             "latest(parameter:data_seed == this:data_seed)",
                             c("data.rds" = "outputs/data.rds",
                               "true_history.rds" = "outputs/true_history.rds",
                               "sir.R" = "sir.R"))

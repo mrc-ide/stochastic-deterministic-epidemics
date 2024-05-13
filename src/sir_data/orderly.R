@@ -1,3 +1,6 @@
+
+orderly2::orderly_parameters(data_seed = 1L)
+
 orderly2::orderly_artefact(
   "Model code for downstream compilation",
   "sir.R"
@@ -21,20 +24,25 @@ dir.create("outputs", FALSE, TRUE)
 pars <- list(beta = 0.2,
              gamma = 0.1)
 
-mod <- sir$new(pars, 0, 1, seed = 1L)
+mod <- sir$new(pars, 0, 1, seed = data_seed)
 
-n_days <- 130
-
-y <- mod$simulate(seq(0, 4 * n_days, by = 4))
+## run until number of infectives goes to 0
+t <- 1
+y <- mod$simulate(c(0, 4))
+inf_zero <- y[4, , t + 1] == 0
+while (!inf_zero) {
+  t <- t + 1
+  y <- abind::abind(y, mod$simulate(4 * t), along = 3)
+  inf_zero <- y[4, , t + 1] == 0
+}
 rownames(y) <- names(mod$info()$index)
 saveRDS(y, "outputs/true_history.rds")
 
-set.seed(1)
+n_days <- t
+set.seed(data_seed)
 cases_model <- y["cases_inc", , seq_len(n_days) + 1]
 cases_data <- rpois(n_days, lambda = cases_model + rexp(n_days, 1e6))
 
 data <- data.frame(cases = cases_data,
                    day = seq_len(n_days))
 saveRDS(data, "outputs/data.rds")
-
-
