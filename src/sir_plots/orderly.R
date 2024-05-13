@@ -21,7 +21,7 @@ orderly2::orderly_artefact("Plots",
 if (!skip_filter_test) {
   orderly2::orderly_artefact("Filter test plots",
                              c(paste0("figs/particle_filter_", seq_len(n_seeds), ".png"),
-                               paste0("figs/filter_samples.png_", seq_len(n_seeds), ".png")))  
+                               paste0("figs/filter_samples_", seq_len(n_seeds), ".png")))  
 }
 
 orderly2::orderly_shared_resource(util.R = "util.R")
@@ -60,28 +60,12 @@ for (data_seed in seq_len(n_seeds)) {
          bg = "white", width = 15, height = 9, dpi = 200)
   
   if (!skip_filter_test) {
-    ## THIS IS A TERRIBLE FIX. ENSURE THAT stoch_filtered_sample in the filter_test is renamed
-    names(filter_samples)[2] <- "stoch_filtered_samples"
-    
-    sample_pars_index <- which.max(stoch_sir_fit$pars_full[, "gamma"])
-    param_values <- seq(from = 0,
-                        to = det_sir_fit$pars_full[sample_pars_index, ]["beta"] * 3,
-                        length.out = length(filter_samples$det_filtered_samples))
-    
-    det_df <- create_filter_df(filter_samples, "det", param_values)
-    stoch_df <- create_filter_df(filter_samples, "stoch", param_values)
-    
-    samples_df <- rbind(det_df, stoch_df)
-    
-    ggsave(filename = "figs/filter_samples.png", 
-           plot = plot_filter_samples(samples_df), 
+    ggsave(filename = paste0("figs/filter_samples_", data_seed, ".png"), 
+           plot = plot_filter_samples(dat[[data_seed]]), 
            bg = "white", width = 15, height = 9, dpi = 200)
     
-    ggsave(filename = "figs/particle_filter.png", 
-           plot = create_particle_filter_plot(filter_data), 
+    ggsave(filename = paste0("figs/particle_filter_", data_seed, ".png"), 
+           plot = create_particle_filter_plot(dat[[data_seed]]$filter_data), 
            bg = "white", width = 15, height = 9, dpi = 200)
   }  
 }
-
-
-

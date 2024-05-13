@@ -105,7 +105,7 @@ if (skip_filter_test) {
   ## run filter on single parameter
   ## (sample around "true" stochastic parameter value)
   ## calculate the log-posterior (likelihood + prior)
-  stoch_filtered_sample <- vapply(seq_along(param_values),
+  stoch_filtered_samples <- vapply(seq_along(param_values),
                                   function(i) {
                                     stoch_pars[param_test] <- param_values[i]
                                     filter_stochastic$run(stoch_sir_pars$model(stoch_pars)) + 
@@ -117,8 +117,8 @@ if (skip_filter_test) {
   stoch_filtered_sample <- unlist(stoch_filtered_sample)
   
   ## save filter outputs
-  filter_samples <- list(det_filtered_samples, stoch_filtered_sample)
-  names(filter_samples) <- c("det_filtered_samples", "stoch_filtered_sample")
+  filter_samples <- list(det_filtered_samples, stoch_filtered_samples)
+  names(filter_samples) <- c("det_filtered_samples", "stoch_filtered_samples")
   saveRDS(filter_samples, "outputs/filter_samples.rds")
   
   ## -----------------------------------------------------------------------------

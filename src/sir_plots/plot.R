@@ -198,7 +198,21 @@ create_filter_df <- function(filter_samples, filter_type, param_values) {
 }
 
 # Function to plot the data, excluding the first value for each filter type
-plot_filter_samples <- function(samples_df) {
+plot_filter_samples <- function(dat) {
+  filter_samples <- dat$filter_samples
+  
+  stoch_pars_full <- dat$stochastic_fit$samples$pars_full
+  det_pars_full <- dat$deterministic_fit$samples$pars_full
+  sample_pars_index <- which.max(stoch_pars_full[, "gamma"])
+  param_values <- seq(from = 0,
+                      to = det_pars_full[sample_pars_index, ]["beta"] * 3,
+                      length.out = length(filter_samples$det_filtered_samples))
+  
+  det_df <- create_filter_df(filter_samples, "det", param_values)
+  stoch_df <- create_filter_df(filter_samples, "stoch", param_values)
+  
+  samples_df <- rbind(det_df, stoch_df)
+  
   # Filter out the first value for each filter type
   filtered_df <- samples_df %>% 
                  group_by(Filter) %>% 
