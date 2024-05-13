@@ -1,9 +1,13 @@
 
 short_run <- FALSE
 skip_filter_test <- TRUE
+n_seeds <- 5L
 
 ## Create SIR model and SIR data simulation
-orderly2::orderly_run("sir_data")
+for (data_seed in seq_len(n_seeds)) {
+  orderly2::orderly_run("sir_data",
+                        parameters = list(data_seed = data_seed))
+}
 
 ## ---------------------------
 ## Run in the cluster
@@ -17,40 +21,47 @@ hipercow::hipercow_provision()
 
 ## 2. Run fits ----
 
-det_fit <- hipercow::task_create_expr(
+det_fit <- hipercow::task_create_bulk_expr(
   orderly2::orderly_run('sir_fits',
                         parameters = list(short_run = short_run,
-                                          deterministic = TRUE)),
+                                          deterministic = TRUE,
+                                          data_seed = data_seed)),
+  data.frame(data_seed = seq_len(n_seeds)),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                            cores = 4)
 )
-det_result <- hipercow::task_result(det_fit)
+det_result <- hipercow::hipercow_bundle_result(det_fit$name)
 
-stoch_fit <- hipercow::task_create_expr(
+stoch_fit <- hipercow::task_create_bulk_expr(
   orderly2::orderly_run('sir_fits',
                         parameters = list(short_run = short_run,
-                                          deterministic = FALSE)),
+                                          deterministic = FALSE,
+                                          data_seed = data_seed)),
+  data.frame(data_seed = seq_len(n_seeds)),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                            cores = 32)
 )
-stoch_result <- hipercow::task_result(stoch_fit)
+stoch_result <- hipercow::hipercow_bundle_result(stoch_fit$name)
 
 
 ## 3. Run particle filter on SIR samples
 
-filter_test <- hipercow::task_create_expr(
+filter_test <- hipercow::task_create_bulk_expr(
   orderly2::orderly_run('sir_filter_test',
                         parameters = list(short_run = short_run,
+                                          data_seed = data_seed,
                                           skip_filter_test = skip_filter_test)),
+  data.frame(data_seed = seq_len(n_seeds)),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                            cores = 32)
 )
 
-filter_test_result <- hipercow::task_result(filter_test)
+filter_test_result <- hipercow::hipercow_bundle_result(filter_test$name)
 
 
 ## 4. Create plots from SIR fits and particle filter samples
 orderly2::orderly_run("sir_plots",
                       list(short_run = short_run,
+                           n_seeds = n_seeds,
                            skip_filter_test = skip_filter_test))
 

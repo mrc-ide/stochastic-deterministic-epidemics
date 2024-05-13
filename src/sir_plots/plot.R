@@ -1,8 +1,16 @@
 # Function to plot parameter correlations
-plot_parameter_correlation_ggplot <- function(stoch_sir_fit, det_sir_fit) {  
+plot_parameter_correlation_ggplot <- function(dat) {
+  
+  stoch_pars <- dat$stochastic_fit$samples$pars
+  det_pars <- dat$deterministic_fit$samples$pars
+  
   # Combine the data into a single data frame
-  df_stoch <- data.frame(beta = stoch_sir_fit$pars[, 1], gamma = stoch_sir_fit$pars[, 2], Type = "Stochastic")
-  df_det <- data.frame(beta = det_sir_fit$pars[, 1], gamma = det_sir_fit$pars[, 2], Type = "Deterministic")
+  df_stoch <- data.frame(beta = stoch_pars[, 1], 
+                         gamma = stoch_pars[, 2],
+                         Type = "Stochastic")
+  df_det <- data.frame(beta = det_pars[, 1],
+                       gamma = det_pars[, 2],
+                       Type = "Deterministic")
   df <- rbind(df_stoch, df_det)
   
   # Plot using ggplot2
@@ -42,10 +50,18 @@ create_density_df <- function(df, x_bins, y_bins) {
 }
 
 # Function to plot combined parameter correlation heatmap
-plot_combined_parameter_correlation_heatmap <- function(stoch_sir_fit, det_sir_fit) {
+plot_combined_parameter_correlation_heatmap <- function(dat) {
+  
+  stoch_pars <- dat$stochastic_fit$samples$pars
+  det_pars <- dat$deterministic_fit$samples$pars
+  
   # Combine the data into a single data frame
-  df_stoch <- data.frame(beta = stoch_sir_fit$pars[, 1], gamma = stoch_sir_fit$pars[, 2], Type = "Stochastic")
-  df_det <- data.frame(beta = det_sir_fit$pars[, 1], gamma = det_sir_fit$pars[, 2], Type = "Deterministic")
+  df_stoch <- data.frame(beta = stoch_pars[, 1], 
+                         gamma = stoch_pars[, 2],
+                         Type = "Stochastic")
+  df_det <- data.frame(beta = det_pars[, 1],
+                       gamma = det_pars[, 2],
+                       Type = "Deterministic")
   df <- rbind(df_stoch, df_det)
 
   # Plot using ggplot2 with density heatmap
@@ -84,7 +100,12 @@ process_sim_results <- function(sim_data, name_prefix, state) {
 }
 
 # Function to plot SIR states
-plot_sir_model <- function(det_sir_fit, stoch_sir_fit, true_history, incidence, state) {
+plot_sir_model <- function(dat, state) {
+  det_sir_fit <- dat$deterministic_fit$samples
+  stoch_sir_fit <- dat$stochastic_fit$samples
+  
+  true_history <- dat$stochastic_fit$true_history
+  
   # Process simulation results
   y1 <- process_sim_results(det_sir_fit, "det", state)
   y2 <- process_sim_results(stoch_sir_fit, "stoch", state)
