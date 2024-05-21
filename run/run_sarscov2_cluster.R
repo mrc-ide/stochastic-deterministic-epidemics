@@ -6,73 +6,69 @@ orderly2::orderly_run("sarscov2_parameters",
                       parameters = list(deterministic = TRUE,
                                         assumptions = "central"))
 
+orderly2::orderly_run("sarscov2_parameters", 
+                      parameters = list(deterministic = FALSE,
+                                        assumptions = "central"))
+
 ## ---------------------------
 ## Run in the cluster
 ## ---------------------------
 
-## 1. Basic cluster setup
+## Basic cluster setup
 hipercow::hipercow_init(driver = "windows")
 hipercow::hipercow_provision()
 
 regions <- sircovid::regions("england")
 
-#----
-
-## 2. Short runs ----
-fits <- 
-  hipercow::task_create_bulk_call(
-    function(x) {
-      orderly2::orderly_run('sarscov2_fits',
-                            parameters = list(region = x,
-                                              short_run = TRUE,
-                                              deterministic = TRUE,
-                                              assumptions = "central"))},
-    regions,
-    resources = hipercow::hipercow_resources(queue = 'AllNodes',
-                                             cores = 8))
-batch <- fits$name
-
-## Collect results
-res <- hipercow::hipercow_bundle_result(batch)
-
-# Combined
-combined <- hipercow::task_create_expr(
-  orderly2::orderly_run('sarscov2_fits_combined',
-                        parameters = list(short_run = TRUE,
-                                          deterministic = TRUE,
-                                          assumptions = "central")),
-  resources = hipercow::hipercow_resources(queue = 'AllNodes',
-                                           cores = 8)
-)
-combined_result <- hipercow::task_result(combined)
+short_run <- FALSE
 
 #----
 
-## 3. Long runs ----
-fits <- 
-  hipercow::task_create_bulk_call(
-    function(x) {
-      orderly2::orderly_run('sarscov2_fits',
-                            parameters = list(region = x,
-                                              short_run = FALSE,
-                                              deterministic = TRUE,
-                                              assumptions = "central"))},
-    regions,
+## Deterministic
+det_fits <- 
+  hipercow::task_create_bulk_expr(
+    orderly2::orderly_run('sarscov2_fits',
+                          parameters = list(region = region,
+                                            short_run = short_run,
+                                            deterministic = TRUE,
+                                            assumptions = "central")),
+    data.frame(region = regions),
     resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                              cores = 8))
-batch <- fits$name
 
-## Collect results
-res <- hipercow::hipercow_bundle_result(batch)
+res <- hipercow::hipercow_bundle_result(det_fits$name)
 
-# Combined
-# Combined
-combined <- hipercow::task_create_expr(
+det_combined <- hipercow::task_create_expr(
   orderly2::orderly_run('sarscov2_fits_combined',
-                        parameters = list(short_run = FALSE,
+                        parameters = list(short_run = short_run,
                                           deterministic = TRUE,
                                           assumptions = "central")),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
-                                           cores = 8)
+                                           cores = 32)
 )
-combined_result <- hipercow::task_result(combined)
+res <- hipercow::task_result(det_combined)
+
+
+## Stochastic
+stoch_fits <- 
+  hipercow::task_create_bulk_expr(
+    orderly2::orderly_run('sarscov2_fits',
+                          parameters = list(region = region,
+                                            short_run = short_run,
+                                            deterministic = FALSE,
+                                            assumptions = "central")),
+    data.frame(region = regions),
+    resources = hipercow::hipercow_resources(queue = 'AllNodes',
+                                             cores = 32))
+
+res <- hipercow::hipercow_bundle_result(stoch_fits$name)
+
+stoch_combined <- hipercow::task_create_expr(
+  orderly2::orderly_run('sarscov2_fits_combined',
+                        parameters = list(short_run = short_run,
+                                          deterministic = FALSE,
+                                          assumptions = "central")),
+  resources = hipercow::hipercow_resources(queue = 'AllNodes',
+                                           cores = 32)
+)
+res <- hipercow::task_result(stoch_combined)
