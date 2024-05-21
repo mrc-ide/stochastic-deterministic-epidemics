@@ -29,11 +29,12 @@ mod <- sir$new(pars, 0, 1, seed = data_seed)
 ## run until number of infectives goes to 0
 t <- 1
 y <- mod$simulate(c(0, 4))
-inf_zero <- y[4, , t + 1] == 0
+index_I <- which(names(mod$info()$index) == "I")
+inf_zero <- y[index_I, , t + 1] == 0
 while (!inf_zero) {
   t <- t + 1
   y <- abind::abind(y, mod$simulate(4 * t), along = 3)
-  inf_zero <- y[4, , t + 1] == 0
+  inf_zero <- y[index_I, , t + 1] == 0
 }
 rownames(y) <- names(mod$info()$index)
 saveRDS(y, "outputs/true_history.rds")
