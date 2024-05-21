@@ -9,8 +9,6 @@ update(I) <- I + n_SI - n_IR
 update(R) <- R + n_IR
 update(cases_cumul) <- cases_cumul + n_SI
 update(cases_inc) <- if (step %% freq == 0) n_SI else cases_inc + n_SI
-update(recoveries_inc) <- if (step %% freq == 0) n_IR else recoveries_inc + n_IR
-initial(recoveries_inc) <- 0
 
 initial(time) <- 0
 initial(S) <- N - I0
@@ -32,12 +30,3 @@ cases <- data()
 
 modelled_cases <- cases_inc + rexp(exp_noise)
 compare(cases) ~ poisson(modelled_cases)
-
-# inf_prev <- data()
-# modelled_inf_prev <- I + rexp(exp_noise)
-# compare(inf_prev) ~ poisson(modelled_inf_prev)
-
-recoveries <- data()
-modelled_recoveries <- recoveries_inc + rexp(exp_noise)
-compare(recoveries) ~ poisson(modelled_recoveries)
-
