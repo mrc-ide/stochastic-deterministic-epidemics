@@ -37,7 +37,6 @@ plot_traceplots <- function(samples) {
             xlab = "Iteration", bty = "n",
             ylab = name, col = cols,
             font.main = 1)
-    rug(samples$iteration[samples$chain == 1], ticksize = 0.1)
   }
   
   

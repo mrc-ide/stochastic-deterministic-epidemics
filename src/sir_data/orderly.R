@@ -41,9 +41,13 @@ saveRDS(y, "outputs/true_history.rds")
 
 n_days <- t
 set.seed(data_seed)
-cases_model <- y["cases_inc", , seq_len(n_days) + 1]
-cases_data <- rpois(n_days, lambda = cases_model + rexp(n_days, 1e6))
+model_cases <- y["cases_inc", , seq_len(n_days) + 1]
+data_cases <- rpois(n_days, lambda = model_cases + rexp(n_days, 1e6))
 
-data <- data.frame(cases = cases_data,
+model_recoveries <- y["recoveries_inc", , seq_len(n_days) + 1]
+data_recoveries <- rpois(n_days, lambda = model_recoveries + rexp(n_days, 1e6))
+
+data <- data.frame(cases = data_cases,
+                   recoveries = data_recoveries,
                    day = seq_len(n_days))
 saveRDS(data, "outputs/data.rds")

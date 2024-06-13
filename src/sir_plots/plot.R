@@ -33,9 +33,9 @@ plot_parameter_correlation_ggplot <- function(dat) {
       color = "Model Type",
       x = expression(beta),
       y = expression(gamma)
-    ) +
-    xlim(0.15, 0.35) +
-    ylim(0.05, 0.2)
+    )# +
+    #xlim(0.15, 0.35) +
+    #ylim(0.05, 0.2)
 }
 
 # Function to create a density data frame for heatmap
@@ -127,6 +127,8 @@ plot_sir_model <- function(dat, state) {
     ylab <- "Infection prevalence"
   } else if (state == "cases_inc") {
     ylab <- "Infection incidence"
+  } else if (state == "recoveries_inc") {
+    ylab <- "Recovery incidence"
   }
   
   # Create the plot with consistent aesthetics

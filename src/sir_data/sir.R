@@ -9,17 +9,21 @@ update(I) <- I + n_SI - n_IR
 update(R) <- R + n_IR
 update(cases_cumul) <- cases_cumul + n_SI
 update(cases_inc) <- if (step %% freq == 0) n_SI else cases_inc + n_SI
+update(recoveries_inc) <- if (step %% freq == 0) n_IR else recoveries_inc + n_IR
 
 initial(time) <- 0
-initial(S) <- N - I0
+initial(S) <- N - min(I0, N)
 initial(R) <- 0
-initial(I) <- I0
+initial(I) <- min(I0, N)
 initial(cases_cumul) <- 0
 initial(cases_inc) <- 0
+initial(recoveries_inc) <- 0
+
+I0 <- rpois(lambda)
 
 beta <- user(0.2)
 gamma <- user(0.1)
-I0 <- user(10)
+lambda<- user(10)
 N <- user(1000)
 
 freq <- user(4)
@@ -27,6 +31,10 @@ dt <- 1.0 / freq
 
 exp_noise <- user(1e6)
 cases <- data()
+recoveries <- data()
 
 modelled_cases <- cases_inc + rexp(exp_noise)
 compare(cases) ~ poisson(modelled_cases)
+
+modelled_recoveries <- recoveries_inc + rexp(exp_noise)
+compare(recoveries) ~ poisson(modelled_recoveries)

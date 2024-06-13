@@ -1,6 +1,8 @@
 orderly2::orderly_parameters(short_run = TRUE,
                              deterministic = TRUE,
-                             data_seed = 1L)
+                             data_seed = 1L,
+                             fit_lambda = FALSE,
+                             recoveries_data = FALSE)
 
 orderly2::orderly_dependency("sir_data", 
                              "latest(parameter:data_seed == this:data_seed)",
@@ -32,20 +34,39 @@ sir <- odin.dust::odin_dust("sir.R")
 incidence <- readRDS("data.rds")
 true_history <- readRDS("true_history.rds")
 
+if (!recoveries_data) {
+  incidence$recoveries <- NA
+}
+
 dt <- 0.25
 data <- mcstate::particle_filter_data(incidence,
   initial_time = 0,
   time = "day",
   rate = 1 / dt)
 
-proposal_kernel <- rbind(c(0.00057, 0.00034), c(0.00034, 0.00026))
-
-pars <- mcstate::pmcmc_parameters$new(
-  list(mcstate::pmcmc_parameter("beta", 0.2, min = 0, max = 1,
-                                prior = function(p) log(1e-10)),
-       mcstate::pmcmc_parameter("gamma", 0.1, min = 0, max = 1,
-                                prior = function(p) log(1e-10))),
-  proposal = proposal_kernel)
+if (fit_lambda) {
+  proposal_kernel <- rbind(c(0.00057, 0.00034, 0), 
+                           c(0.00034, 0.00026, 0),
+                           c(0, 0, 5))
+  
+  pars <- mcstate::pmcmc_parameters$new(
+    list(mcstate::pmcmc_parameter("beta", 0.2, min = 0, max = 1,
+                                  prior = function(p) log(1e-10)),
+         mcstate::pmcmc_parameter("gamma", 0.1, min = 0, max = 1,
+                                  prior = function(p) log(1e-10)),
+         mcstate::pmcmc_parameter("lambda", 10, min = 0, max = 1000,
+                                  prior = function(p) log(1e-10))),
+    proposal = proposal_kernel)
+} else {
+  proposal_kernel <- rbind(c(0.00057, 0.00034), c(0.00034, 0.00026))
+  
+  pars <- mcstate::pmcmc_parameters$new(
+    list(mcstate::pmcmc_parameter("beta", 0.2, min = 0, max = 1,
+                                  prior = function(p) log(1e-10)),
+         mcstate::pmcmc_parameter("gamma", 0.1, min = 0, max = 1,
+                                  prior = function(p) log(1e-10))),
+    proposal = proposal_kernel)  
+}
 
 if (short_run) {
   burnin <- 1
@@ -66,18 +87,21 @@ if (deterministic) {
   n_threads <- n_threads_total / n_workers
   p <- mcstate::particle_deterministic$new(data, sir, compare = NULL, index = index,
                                             n_threads = n_threads)
-  adaptive_proposal <- TRUE
+  adaptive_proposal <- 
+    mcstate::adaptive_proposal_control(initial_vcv_weight = 100)
+  rerun_every <- Inf
 } else {
   max_workers <- 4
   pos <- seq_len(max_workers)
   n_workers <- max(pos[n_threads_total %% pos == 0 & pos <= n_chains])
   n_threads <- n_threads_total / n_workers
   
-  n_particles <- 192
+  n_particles <- 1024
   p <- mcstate::particle_filter$new(data, sir, n_particles = n_particles,
                                     compare = NULL, index = index,
                                     n_threads = n_threads)
   adaptive_proposal <- FALSE
+  rerun_every <- 100
 }
 n_threads <- n_threads_total / n_workers
 
@@ -86,6 +110,8 @@ control <-
                          n_threads_total = n_threads_total,
                          n_workers = n_workers, n_chains = n_chains,
                          n_steps_retain = n_steps_retain, save_state = TRUE,
+                         rerun_every = rerun_every,
+                         rerun_random = TRUE,
                          adaptive_proposal = adaptive_proposal,
                          save_trajectories = TRUE, progress = TRUE)
 

@@ -1,20 +1,26 @@
 
 orderly2::orderly_parameters(short_run = TRUE, 
                              data_seed = 1L,
-                             skip_filter_test = FALSE)
+                             skip_filter_test = FALSE,
+                             fit_lambda = FALSE,
+                             recoveries_data = FALSE)
 
 orderly2::orderly_dependency("sir_fits",
-                             'latest(parameter:short_run == this:short_run && parameter:deterministic == FALSE && parameter:data_seed == this:data_seed)',
+                             'latest(parameter:short_run == this:short_run && parameter:deterministic == FALSE && parameter:data_seed == this:data_seed && parameter:fit_lambda == this:fit_lambda && parameter:recoveries_data == this:recoveries_data)',
                              c("stochastic_fit.rds" = "outputs/fit.rds",
+                               "figs/traceplots_stochastic.png" = "figs/traceplots.png",
                                "sir.R" = "sir.R"))
 
 orderly2::orderly_dependency("sir_fits",
-                             "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE && parameter:data_seed == this:data_seed)",
-                             c("deterministic_fit.rds" = "outputs/fit.rds"))
+                             "latest(parameter:short_run == this:short_run && parameter:deterministic == TRUE && parameter:data_seed == this:data_seed && parameter:fit_lambda == this:fit_lambda && parameter:recoveries_data == this:recoveries_data)",
+                             c("deterministic_fit.rds" = "outputs/fit.rds",
+                               "figs/traceplots_deterministic.png" = "figs/traceplots.png"))
 
 orderly2::orderly_artefact("Fit objects for downstream usage",
                            c("stochastic_fit.rds",
-                             "deterministic_fit.rds"))
+                             "deterministic_fit.rds",
+                             "figs/traceplots_deterministic.png",
+                             "figs/traceplots_stochastic.png"))
 
 orderly2::orderly_artefact("Filter outputs",
                            c("outputs/filter_data.rds",

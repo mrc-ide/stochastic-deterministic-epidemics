@@ -1,24 +1,55 @@
 
-short_run <- TRUE
+short_run <- FALSE
+skip_filter_test <- TRUE
+n_seeds <- 5L
+fit_lambda <- FALSE
+recoveries_data <- FALSE
 
 ## Create SIR model and SIR data simulation
-orderly2::orderly_run("data")
+for (data_seed in seq_len(n_seeds)) {
+  orderly2::orderly_run("sir_data",
+                        parameters = list(data_seed = data_seed))
+}
 
 ## Fit SIR model
-runs <- list(
-  list(short_run = short_run, deterministic = TRUE, adaptive_proposal = FALSE),
-  list(short_run = short_run, deterministic = TRUE, adaptive_proposal = TRUE),
-  list(short_run = short_run, deterministic = FALSE, adaptive_proposal = FALSE)
-)
 
-lapply(runs, function(params) {
-  orderly2::orderly_run("fits", params)
-})
+# Deterministic
+for (data_seed in seq_len(n_seeds)) {
+  orderly2::orderly_run('sir_fits',
+                        parameters = list(short_run = short_run,
+                                          deterministic = TRUE,
+                                          data_seed = data_seed,
+                                          fit_lambda = fit_lambda,
+                                          recoveries_data = recoveries_data))
+}
+  
+
+# Stochastic
+for (data_seed in seq_len(n_seeds)) {
+  orderly2::orderly_run('sir_fits',
+                        parameters = list(short_run = short_run,
+                                          deterministic = FALSE,
+                                          data_seed = data_seed,
+                                          fit_lambda = fit_lambda,
+                                          recoveries_data = recoveries_data))
+}
+
 
 ## Run particle filter on SIR samples
-orderly2::orderly_run("filter_test", 
-                        list(short_run = short_run))
+for (data_seed in seq_len(n_seeds)) {
+  orderly2::orderly_run('sir_filter_test',
+                        parameters = list(short_run = short_run,
+                                          data_seed = data_seed,
+                                          skip_filter_test = skip_filter_test,
+                                          fit_lambda = fit_lambda,
+                                          recoveries_data = recoveries_data))  
+}
+
 
 ## Create plots from SIR fits and particle filter samples
-orderly2::orderly_run("plots",
-                      list(short_run = short_run))
+orderly2::orderly_run("sir_plots",
+                      list(short_run = short_run,
+                           n_seeds = n_seeds,
+                           skip_filter_test = skip_filter_test,
+                           fit_lambda = fit_lambda,
+                           recoveries_data = recoveries_data))

@@ -2,6 +2,8 @@
 short_run <- FALSE
 skip_filter_test <- TRUE
 n_seeds <- 5L
+fit_lambda <- FALSE
+recoveries_data <- FALSE
 
 ## Create SIR model and SIR data simulation
 for (data_seed in seq_len(n_seeds)) {
@@ -25,7 +27,9 @@ det_fit <- hipercow::task_create_bulk_expr(
   orderly2::orderly_run('sir_fits',
                         parameters = list(short_run = short_run,
                                           deterministic = TRUE,
-                                          data_seed = data_seed)),
+                                          data_seed = data_seed,
+                                          fit_lambda = fit_lambda,
+                                          recoveries_data = recoveries_data)),
   data.frame(data_seed = seq_len(n_seeds)),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                            cores = 4)
@@ -36,7 +40,9 @@ stoch_fit <- hipercow::task_create_bulk_expr(
   orderly2::orderly_run('sir_fits',
                         parameters = list(short_run = short_run,
                                           deterministic = FALSE,
-                                          data_seed = data_seed)),
+                                          data_seed = data_seed,
+                                          fit_lambda = fit_lambda,
+                                          recoveries_data = recoveries_data)),
   data.frame(data_seed = seq_len(n_seeds)),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                            cores = 32)
@@ -50,7 +56,9 @@ filter_test <- hipercow::task_create_bulk_expr(
   orderly2::orderly_run('sir_filter_test',
                         parameters = list(short_run = short_run,
                                           data_seed = data_seed,
-                                          skip_filter_test = skip_filter_test)),
+                                          skip_filter_test = skip_filter_test,
+                                          fit_lambda = fit_lambda,
+                                          recoveries_data = recoveries_data)),
   data.frame(data_seed = seq_len(n_seeds)),
   resources = hipercow::hipercow_resources(queue = 'AllNodes',
                                            cores = 32)
@@ -63,5 +71,7 @@ filter_test_result <- hipercow::hipercow_bundle_result(filter_test$name)
 orderly2::orderly_run("sir_plots",
                       list(short_run = short_run,
                            n_seeds = n_seeds,
-                           skip_filter_test = skip_filter_test))
+                           skip_filter_test = skip_filter_test,
+                           fit_lambda = fit_lambda,
+                           recoveries_data = recoveries_data))
 
