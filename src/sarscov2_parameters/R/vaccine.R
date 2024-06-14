@@ -29,7 +29,7 @@ calculate_average_vacc_efficacy <- function(vaccine_efficacy, prop_pfizer) {
   vaccine_efficacy$week_wane <- NULL
   ret <- vaccine_efficacy %>%
     tidyr::pivot_longer(-c(type, vaccine, dose), names_to = "analysis") %>%
-    tidyr::expand_grid(group = seq_len(19)) %>%
+    tidyr::expand_grid(group = seq_len(17)) %>%
     # code dose numbers according to their vaccine strata
     dplyr::mutate(prop_pfizer = prop_pfizer[group],
                   stratum = forcats::fct_recode(as.character(dose),
@@ -61,7 +61,7 @@ get_vaccine_conditional_prob <- function(eff_death,
                                          eff_disease, eff_infection,
                                          eff_onwards_transmission = NULL) {
   
-  n_group <- 19
+  n_group <- 17
   rel_susceptibility <- matrix(1 - eff_infection, n_group)
   rel_p_sympt <- matrix(1 - eff_disease, n_group) / rel_susceptibility
   rel_p_hosp_if_sympt <-
