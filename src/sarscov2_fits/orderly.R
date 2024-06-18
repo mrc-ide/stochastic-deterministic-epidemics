@@ -31,8 +31,8 @@ source("support.R")
 
 source("util.R")
 
-version_check("sircovid", "0.15.0")
-version_check("spimalot", "0.8.25")
+version_check("sircovid", "0.15.1")
+version_check("spimalot", "0.8.30")
 
 date <- "2022-02-24"
 
