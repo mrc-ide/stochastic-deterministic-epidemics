@@ -465,6 +465,7 @@ make_transform <- function(baseline, date = NULL) {
         region = baseline$region,
         beta_date = baseline$beta_date,
         beta_value = beta_value,
+        has_carehomes = FALSE,
         carehome_beds = 0,
         
         severity = severity,
