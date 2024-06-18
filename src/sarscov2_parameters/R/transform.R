@@ -78,6 +78,7 @@ compute_severity <- function(pars, severity_data, assumptions) {
   severity <- sircovid::lancelot_parameters_severity(
     dt,
     severity_data,
+    has_carehomes = FALSE,
     p_H = list(value = p_H_value, date = p_H_date),
     p_ICU = list(value = p_ICU_value, date = p_ICU_date),
     p_ICU_D = list(value = p_ICU_D_value, date = p_D_date),
@@ -464,6 +465,7 @@ make_transform <- function(baseline, date = NULL) {
         region = baseline$region,
         beta_date = baseline$beta_date,
         beta_value = beta_value,
+        has_carehomes = FALSE,
         carehome_beds = 0,
         
         severity = severity,
