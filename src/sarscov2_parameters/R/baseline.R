@@ -334,7 +334,7 @@ create_baseline <- function(region, date, restart_date,
     vacc_doses_by_age_date_vaccine$Moderna), 1, sum, na.rm = TRUE)
   
   ## set %PF in CHW / CHR <-  80+
-  prop_pfizer <- c(prop_pfizer, rep(prop_pfizer[17], 2))
+  # prop_pfizer <- c(prop_pfizer, rep(prop_pfizer[17], 2))
   # 100% PF in 0-10
   prop_pfizer[sircovid:::sircovid_age_bins()$end < 10] <- 1
   
@@ -478,6 +478,8 @@ create_baseline <- function(region, date, restart_date,
                                     vaccine_uptake, vaccine_days_to_effect,
                                     data_vaccination, n_doses, dose_start_dates,
                                     carehomes = FALSE)
+  vaccination$schedule$doses <- 
+    vaccination$schedule$doses[1:17, , , drop = FALSE]
   
   vaccine_schedule_real <- vaccination$schedule
   
