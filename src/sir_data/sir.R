@@ -1,7 +1,7 @@
-p_SI <- 1 - exp(-(beta) * I / N)
-p_IR <- 1 - exp(-(gamma))
-n_IR <- rbinom(I, p_IR * dt)
-n_SI <- rbinom(S, p_SI * dt)
+p_SI <- 1 - exp(-beta * dt * I / N)
+p_IR <- 1 - exp(-gamma * dt)
+n_IR <- rbinom(I, p_IR)
+n_SI <- rbinom(S, p_SI)
 
 update(time) <- (step + 1) * dt
 update(S) <- S - n_SI
